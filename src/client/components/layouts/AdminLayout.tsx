@@ -67,8 +67,8 @@ export default function AdminLayout() {
               variant="admin"
             />
             <div className="min-w-0">
-              <h1 className="text-xs font-black text-white tracking-tighter leading-none uppercase italic group-hover:text-blue-400 transition-colors truncate">ADMIN PORTAL</h1>
-              <p className="text-[9px] font-bold text-zinc-500 tracking-[0.2em] uppercase leading-none mt-1 truncate max-w-[130px] sm:max-w-[140px]">{settings?.siteTitle || 'MEDCORE ACADEMY'}</p>
+              <h1 className="text-xs font-black text-white tracking-tighter leading-none uppercase italic group-hover:text-blue-400 transition-colors truncate">{settings?.siteTitle || 'MEDCORE ACADEMY'}</h1>
+              <p className="text-[9px] font-bold text-zinc-500 tracking-[0.2em] uppercase leading-none mt-1 truncate max-w-[130px] sm:max-w-[140px]">ADMIN PORTAL</p>
             </div>
           </Link>
           <button 

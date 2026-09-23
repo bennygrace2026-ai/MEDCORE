@@ -80,8 +80,8 @@ export default function StudentLayout() {
               variant="student"
             />
             <div className="min-w-0">
-              <h1 className="text-xs sm:text-sm font-black text-white tracking-tighter leading-none uppercase italic group-hover:text-red-500 transition-colors truncate">{settings?.siteSubtitle || 'UNI9JA MEDIA'}</h1>
-              <p className="text-[9px] font-bold text-amber-500 tracking-[0.2em] uppercase leading-none mt-1 truncate max-w-[130px] sm:max-w-[150px]">{settings?.siteTitle || 'MEDCORE ACADEMY'}</p>
+              <h1 className="text-xs sm:text-sm font-black text-white tracking-tighter leading-none uppercase italic group-hover:text-red-500 transition-colors truncate">{settings?.siteTitle || 'MEDCORE ACADEMY'}</h1>
+              <p className="text-[9px] font-bold text-amber-500 tracking-[0.2em] uppercase leading-none mt-1 truncate max-w-[130px] sm:max-w-[150px]">{settings?.siteSubtitle || 'UNI9JA MEDIA'}</p>
             </div>
           </Link>
           <button 

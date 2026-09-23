@@ -36,8 +36,8 @@ export default function PublicLayout() {
                 variant="public"
               />
               <div className="flex flex-col min-w-0">
-                <h1 className="text-base sm:text-xl font-black text-zinc-900 tracking-tighter leading-none uppercase italic decoration-red-600 group-hover:text-red-600 transition-colors truncate">{siteSubtitle}</h1>
-                <p className="text-[9px] sm:text-[10px] font-bold text-amber-500 tracking-[0.2em] uppercase leading-none mt-1 truncate">{siteTitle}</p>
+                <h1 className="text-base sm:text-xl font-black text-zinc-900 tracking-tighter leading-none uppercase italic decoration-red-600 group-hover:text-red-600 transition-colors truncate">{siteTitle}</h1>
+                <p className="text-[9px] sm:text-[10px] font-bold text-amber-500 tracking-[0.2em] uppercase leading-none mt-1 truncate">{siteSubtitle}</p>
               </div>
             </Link>
 

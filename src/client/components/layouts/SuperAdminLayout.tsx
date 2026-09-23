@@ -73,8 +73,8 @@ export default function SuperAdminLayout() {
               variant="superadmin"
             />
             <div className="min-w-0">
-              <h1 className="text-xs font-black text-white tracking-tighter leading-none uppercase italic group-hover:text-purple-400 transition-colors truncate">SUPER ADMIN</h1>
-              <p className="text-[9px] font-bold text-zinc-500 tracking-[0.2em] uppercase leading-none mt-1 truncate max-w-[130px] sm:max-w-[150px]">{settings?.siteTitle || 'SYSTEM CONTROL'}</p>
+              <h1 className="text-xs font-black text-white tracking-tighter leading-none uppercase italic group-hover:text-purple-400 transition-colors truncate">{settings?.siteTitle || 'MEDCORE ACADEMY'}</h1>
+              <p className="text-[9px] font-bold text-zinc-500 tracking-[0.2em] uppercase leading-none mt-1 truncate max-w-[130px] sm:max-w-[150px]">SUPER ADMIN</p>
             </div>
           </Link>
           <button 
