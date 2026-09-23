@@ -385,6 +385,7 @@ export default function ManageStudents() {
               <tr>
                 <th className="px-6 py-4 font-semibold">Student</th>
                 <th className="px-6 py-4 font-semibold">Medcore ID</th>
+                <th className="px-6 py-4 font-semibold">Registration Date</th>
                 <th className="px-6 py-4 font-semibold">Coins Balance</th>
                 <th className="px-6 py-4 font-semibold">Academic Profile</th>
                 <th className="px-6 py-4 font-semibold">Account Status</th>
@@ -394,7 +395,7 @@ export default function ManageStudents() {
             <tbody className="divide-y divide-zinc-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-zinc-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-zinc-500">
                     <div className="animate-pulse flex flex-col items-center">
                       <div className="h-8 w-8 bg-zinc-200 rounded-full mb-3"></div>
                       <p className="text-xs">Loading student records...</p>
@@ -403,7 +404,7 @@ export default function ManageStudents() {
                 </tr>
               ) : filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-zinc-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-zinc-500">
                     <Users className="mx-auto h-10 w-10 text-zinc-300 mb-2" />
                     <p className="text-base font-bold text-zinc-900">No students found</p>
                     <p className="text-xs text-zinc-400">There are no registered students matching your search criteria.</p>
@@ -454,6 +455,18 @@ export default function ManageStudents() {
                       <td className="px-6 py-4">
                         <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-mono font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200">
                           {student.studentId}
+                        </span>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-purple-50 text-purple-800 border border-purple-150/80">
+                          {(() => {
+                            const regDateObj = student.createdAt ? new Date(student.createdAt) : new Date();
+                            const isToday = new Date().toDateString() === regDateObj.toDateString();
+                            return isToday 
+                              ? `Today, ${regDateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`
+                              : regDateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+                          })()}
                         </span>
                       </td>
 
