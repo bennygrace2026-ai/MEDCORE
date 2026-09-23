@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
+  <defs>
+    <linearGradient id="anaBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#18181b" />
+      <stop offset="50%" stop-color="#27272a" />
+      <stop offset="100%" stop-color="#09090b" />
+    </linearGradient>
+    <linearGradient id="redGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#991b1b" />
+    </linearGradient>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+  </defs>
+  <rect width="800" height="500" fill="url(#anaBg)"/>
+  <!-- Decorative Grid -->
+  <g stroke="#3f3f46" stroke-width="0.5" opacity="0.2">
+    <line x1="0" y1="100" x2="800" y2="100" />
+    <line x1="0" y1="200" x2="800" y2="200" />
+    <line x1="0" y1="300" x2="800" y2="300" />
+    <line x1="0" y1="400" x2="800" y2="400" />
+    <line x1="200" y1="0" x2="200" y2="500" />
+    <line x1="400" y1="0" x2="400" y2="500" />
+    <line x1="600" y1="0" x2="600" y2="500" />
+  </g>
+  <!-- Anatomical Silhouette / Thorax & Vasc Accent -->
+  <circle cx="400" cy="220" r="140" fill="#dc2626" opacity="0.08" filter="blur(40px)"/>
+  <!-- Ribcage / Thoracic Cage Lines -->
+  <g fill="none" stroke="#f43f5e" stroke-width="4" stroke-linecap="round" opacity="0.75">
+    <path d="M 400 130 L 400 340" stroke="#ffffff" stroke-width="5" opacity="0.9"/>
+    <path d="M 400 160 Q 320 180 290 230" />
+    <path d="M 400 160 Q 480 180 510 230" />
+    <path d="M 400 190 Q 310 210 270 270" />
+    <path d="M 400 190 Q 490 210 530 270" />
+    <path d="M 400 220 Q 300 245 260 310" />
+    <path d="M 400 220 Q 500 245 540 310" />
+    <path d="M 400 250 Q 320 280 280 340" />
+    <path d="M 400 250 Q 480 280 520 340" />
+  </g>
+  <!-- Heart & Arterial / Venous System Accent -->
+  <circle cx="380" cy="210" r="26" fill="url(#redGrad)" opacity="0.9"/>
+  <path d="M 380 195 Q 360 140 330 110" fill="none" stroke="url(#blueGrad)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M 385 195 Q 420 140 450 110" fill="none" stroke="url(#redGrad)" stroke-width="4" stroke-linecap="round"/>
+  <!-- Course Code Badge Overlay -->
+  <rect x="40" y="40" width="130" height="38" rx="10" fill="#dc2626" opacity="0.9"/>
+  <text x="105" y="65" fill="#ffffff" font-family="system-ui, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" letter-spacing="2">ANA 201</text>
+  <!-- Course Title -->
+  <text x="40" y="430" fill="#ffffff" font-family="system-ui, sans-serif" font-size="28" font-weight="900" letter-spacing="1">GROSS ANATOMY</text>
+  <text x="40" y="458" fill="#a1a1aa" font-family="system-ui, sans-serif" font-size="14" font-weight="500" letter-spacing="0.5">Upper &amp; Lower Limb • Thorax • Abdomen</text>
+</svg>

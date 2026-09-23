@@ -1,0 +1,11 @@
+{
+  "name": "UNI9JA MEDIA MEDCORE ACADEMY",
+  "description": "Professional modern medical and academic LMS platform with role-based access, courses, quizzes, and community.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

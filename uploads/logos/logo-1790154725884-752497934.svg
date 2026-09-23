@@ -1,0 +1,177 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="100%" height="100%">
+  <defs>
+    <!-- Clip path for the 4 quadrants inside the shield -->
+    <clipPath id="shieldInnerClip">
+      <path d="M 160 160 L 440 160 C 440 290 410 400 300 480 C 190 400 160 290 160 160 Z"/>
+    </clipPath>
+    <!-- Drop shadow for the shield -->
+    <filter id="shieldShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#051329" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <!-- ==================== TOP BRAND TEXT ==================== -->
+  <g id="brand-typography">
+    <text x="300" y="86" text-anchor="middle" font-family="'Times New Roman', Georgia, 'Cinzel', serif" font-weight="900" font-size="34" letter-spacing="2" fill="#0b2447">UNI9JA MEDIA HUB</text>
+    <text x="300" y="136" text-anchor="middle" font-family="'Times New Roman', Georgia, 'Cinzel', serif" font-weight="900" font-size="44" letter-spacing="1" fill="#0b2447">MEDCORE ACADEMY</text>
+  </g>
+
+  <!-- ==================== LAUREL WREATH & STAR ==================== -->
+  <g id="laurel-wreath" fill="#0b2447">
+    <!-- Left Laurel Branch -->
+    <!-- Leaf pairs curving along the left side -->
+    <path d="M 148 260 C 130 250, 116 270, 126 290 C 138 288, 146 276, 148 260 Z" />
+    <path d="M 132 230 C 114 220, 102 240, 114 260 C 124 256, 130 244, 132 230 Z" />
+    <path d="M 120 296 C 104 290, 96 312, 108 330 C 118 324, 122 310, 120 296 Z" />
+    <path d="M 140 326 C 124 322, 118 344, 130 360 C 138 352, 142 338, 140 326 Z" />
+    <path d="M 124 366 C 110 364, 108 386, 122 400 C 130 392, 132 378, 124 366 Z" />
+    <path d="M 150 392 C 136 392, 136 414, 150 426 C 156 416, 158 404, 150 392 Z" />
+    <path d="M 144 430 C 132 432, 134 454, 150 462 C 156 450, 154 440, 144 430 Z" />
+    <path d="M 174 452 C 162 458, 168 478, 184 482 C 188 470, 184 460, 174 452 Z" />
+    <path d="M 174 486 C 164 492, 172 512, 190 512 C 192 498, 186 490, 174 486 Z" />
+    <path d="M 210 504 C 200 512, 210 530, 228 528 C 228 514, 220 506, 210 504 Z" />
+    <path d="M 214 532 C 206 540, 220 556, 238 548 C 236 536, 226 530, 214 532 Z" />
+    <path d="M 252 538 C 244 548, 260 562, 276 552 C 272 540, 262 536, 252 538 Z" />
+
+    <!-- Stem Left -->
+    <path d="M 124 236 C 96 320, 114 440, 278 546 C 266 540, 116 430, 138 240 Z" />
+
+    <!-- Right Laurel Branch -->
+    <path d="M 452 260 C 470 250, 484 270, 474 290 C 462 288, 454 276, 452 260 Z" />
+    <path d="M 468 230 C 486 220, 498 240, 486 260 C 476 256, 470 244, 468 230 Z" />
+    <path d="M 480 296 C 496 290, 504 312, 492 330 C 482 324, 478 310, 480 296 Z" />
+    <path d="M 460 326 C 476 322, 482 344, 470 360 C 462 352, 458 338, 460 326 Z" />
+    <path d="M 476 366 C 490 364, 492 386, 478 400 C 470 392, 468 378, 476 366 Z" />
+    <path d="M 450 392 C 464 392, 464 414, 450 426 C 444 416, 442 404, 450 392 Z" />
+    <path d="M 456 430 C 468 432, 466 454, 450 462 C 444 450, 446 440, 456 430 Z" />
+    <path d="M 426 452 C 438 458, 432 478, 416 482 C 412 470, 416 460, 426 452 Z" />
+    <path d="M 426 486 C 436 492, 428 512, 410 512 C 408 498, 414 490, 426 486 Z" />
+    <path d="M 390 504 C 400 512, 390 530, 372 528 C 372 514, 380 506, 390 504 Z" />
+    <path d="M 386 532 C 394 540, 380 556, 362 548 C 364 536, 374 530, 386 532 Z" />
+    <path d="M 348 538 C 356 548, 340 562, 324 552 C 328 540, 338 536, 348 538 Z" />
+
+    <!-- Stem Right -->
+    <path d="M 476 236 C 504 320, 486 440, 322 546 C 334 540, 484 430, 462 240 Z" />
+
+    <!-- Bottom Star -->
+    <!-- Centered at bottom (300, 532) -->
+    <polygon points="300,516 305,528 318,529 308,537 312,550 300,542 288,550 292,537 282,529 295,528" fill="#0b2447" />
+  </g>
+
+  <!-- ==================== SHIELD TOP MANTEL / BRACKET ==================== -->
+  <g id="shield-mantel">
+    <!-- Top Crown Mantel with outward ears -->
+    <path d="M 116 144 L 484 144 L 484 164 L 452 164 C 452 186 448 188 440 188 L 160 188 C 152 188 148 186 148 164 L 116 164 Z" fill="#0b2447"/>
+    <path d="M 152 152 L 448 152 L 448 160 L 152 160 Z" fill="#ffffff" opacity="0.3"/>
+  </g>
+
+  <!-- ==================== HERALDIC SHIELD BASE ==================== -->
+  <!-- Outer Shield Border -->
+  <path d="M 148 152 L 452 152 C 452 300 422 416 300 502 C 178 416 148 300 148 152 Z" 
+        fill="#0b2447" filter="url(#shieldShadow)"/>
+
+  <!-- Inner White Outline / Fillet -->
+  <path d="M 154 156 L 446 156 C 446 295 416 408 300 492 C 184 408 154 295 154 156 Z" 
+        fill="#ffffff" stroke="#0b2447" stroke-width="4"/>
+
+  <!-- Quadrants Container (Clipped to Inner Shield Area) -->
+  <g clip-path="url(#shieldInnerClip)">
+    <!-- Top-Left Quadrant: Navy Blue -->
+    <rect x="156" y="156" width="144" height="154" fill="#0b2447"/>
+    
+    <!-- Top-Right Quadrant: Crimson Red -->
+    <rect x="300" y="156" width="150" height="154" fill="#b0151c"/>
+    
+    <!-- Bottom-Left Quadrant: Crimson Red -->
+    <path d="M 156 310 L 300 310 L 300 488 C 220 428 172 374 156 310 Z" fill="#b0151c"/>
+    
+    <!-- Bottom-Right Quadrant: Navy Blue -->
+    <path d="M 300 310 L 450 310 C 434 374 386 428 300 488 Z" fill="#0b2447"/>
+
+    <!-- Central White Cross Dividers -->
+    <line x1="156" y1="310" x2="444" y2="310" stroke="#ffffff" stroke-width="5"/>
+    <line x1="300" y1="156" x2="300" y2="490" stroke="#ffffff" stroke-width="5"/>
+
+    <!-- ==================== QUADRANT 1: CADUCEUS (Top-Left, Navy) ==================== -->
+    <g id="icon-caduceus" transform="translate(230, 236)" fill="#ffffff" stroke="#ffffff">
+      <!-- Wing Left -->
+      <path d="M -4 -38 C -18 -48, -46 -48, -58 -32 C -52 -24, -36 -24, -22 -28 C -12 -30, -6 -34, -4 -38 Z" stroke-width="1"/>
+      <path d="M -6 -32 C -18 -38, -38 -34, -48 -22 C -40 -18, -26 -20, -14 -22 Z" stroke-width="0.5"/>
+      <!-- Wing Right -->
+      <path d="M 4 -38 C 18 -48, 46 -48, 58 -32 C 52 -24, 36 -24, 22 -28 C 12 -30, 6 -34, 4 -38 Z" stroke-width="1"/>
+      <path d="M 6 -32 C 18 -38, 38 -34, 48 -22 C 40 -18, 26 -20, 14 -22 Z" stroke-width="0.5"/>
+      
+      <!-- Top Sphere / Knob -->
+      <circle cx="0" cy="-42" r="5.5" stroke="none"/>
+      
+      <!-- Center Staff -->
+      <line x1="0" y1="-42" x2="0" y2="46" stroke-width="4.5" stroke-linecap="round"/>
+      <polygon points="0,48 -2.5,42 2.5,42" stroke="none"/>
+
+      <!-- Twin Serpents intertwined around staff -->
+      <path d="M -16 -24 C -6 -28, 6 -28, 14 -18 C 22 -8, 2 -2, -12 4 C -26 10, -18 20, 2 24 C 18 28, 8 36, 0 42" 
+            fill="none" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M 16 -24 C 6 -28, -6 -28, -14 -18 C -22 -8, -2 -2, 12 4 C 26 10, 18 20, -2 24 C -18 28, -8 36, 0 42" 
+            fill="none" stroke-width="3.5" stroke-linecap="round"/>
+      
+      <!-- Serpent Heads Facing Each Other -->
+      <circle cx="-13" cy="-24" r="3" stroke="none"/>
+      <circle cx="13" cy="-24" r="3" stroke="none"/>
+    </g>
+
+    <!-- ==================== QUADRANT 2: STETHOSCOPE (Top-Right, Crimson) ==================== -->
+    <g id="icon-stethoscope" transform="translate(372, 235)" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+      <!-- Binaural Tubes -->
+      <!-- Left Earpiece & tube -->
+      <path d="M -26 -40 L -22 -38 C -20 -24, -14 0, 0 0" />
+      <circle cx="-26" cy="-40" r="3" fill="#ffffff" stroke="none"/>
+      <!-- Right Earpiece & tube -->
+      <path d="M 26 -40 L 22 -38 C 20 -24, 14 0, 0 0" />
+      <circle cx="26" cy="-40" r="3" fill="#ffffff" stroke="none"/>
+
+      <!-- Flexible Tubing Loop -->
+      <path d="M 0 0 C 0 24, 20 40, 36 24 C 48 10, 48 -6, 32 -6 C 16 -6, 12 14, 28 28 C 36 36, 44 26, 44 14" />
+      
+      <!-- Chestpiece / Bell -->
+      <circle cx="44" cy="12" r="8" fill="#ffffff" stroke="#ffffff" stroke-width="2"/>
+      <circle cx="44" cy="12" r="4.5" fill="#b0151c" stroke="none"/>
+    </g>
+
+    <!-- ==================== QUADRANT 3: OPEN BOOK & ECG PULSE (Bottom-Left, Crimson) ==================== -->
+    <g id="icon-book-ecg" transform="translate(230, 385)" fill="#ffffff" stroke="#ffffff">
+      <!-- Dynamic ECG Heartbeat Line Rising Above the Book -->
+      <path d="M -46 -24 L -18 -24 L -10 -44 L 0 -12 L 12 -52 L 20 -24 L 46 -24" 
+            fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+      <!-- Open Medical Book -->
+      <!-- Left Page -->
+      <path d="M -38 -12 C -22 -16, -6 -16, 0 -8 L 0 24 C -6 18, -22 18, -38 22 Z" 
+            fill="#ffffff" stroke="none"/>
+      <!-- Right Page -->
+      <path d="M 38 -12 C 22 -16, 6 -16, 0 -8 L 0 24 C 6 18, 22 18, 38 22 Z" 
+            fill="#ffffff" stroke="none"/>
+
+      <!-- Center Spine Divider -->
+      <line x1="0" y1="-8" x2="0" y2="25" stroke="#b0151c" stroke-width="2.5"/>
+
+      <!-- Book Base Curves / Pages Thickness -->
+      <path d="M -38 24 C -22 20, -6 20, 0 26 C 6 20, 22 20, 38 24" 
+            fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+      <path d="M -36 29 C -22 25, -6 25, 0 31 C 6 25, 22 25, 36 29" 
+            fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+    </g>
+
+    <!-- ==================== QUADRANT 4: MEDICAL CROSS (Bottom-Right, Navy) ==================== -->
+    <g id="icon-cross" transform="translate(372, 385)" fill="#ffffff">
+      <!-- Bold Equilateral Greek Medical Cross -->
+      <!-- Horizontal Beam -->
+      <rect x="-42" y="-14" width="84" height="28" rx="2" fill="#ffffff" stroke="none"/>
+      <!-- Vertical Beam -->
+      <rect x="-14" y="-42" width="28" height="84" rx="2" fill="#ffffff" stroke="none"/>
+    </g>
+  </g>
+
+  <!-- Highlight stroke along inner shield perimeter -->
+  <path d="M 160 160 L 440 160 C 440 290 410 400 300 480 C 190 400 160 290 160 160 Z" 
+        fill="none" stroke="#0b2447" stroke-width="4"/>
+</svg>
