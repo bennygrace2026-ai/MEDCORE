@@ -30,7 +30,11 @@ import {
   FolderPlus,
   Loader2,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  ArrowLeft,
+  LayoutGrid,
+  List,
+  ArrowRight
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { encryptMessage, decryptMessage, getRoomFingerprint } from '../../utils/e2ee';
@@ -108,6 +112,13 @@ export default function CommunityChatEngine({ portalRole, initialTab = 'CHANNELS
   // Active view tabs
   const [activeTab, setActiveTab] = useState<'CHANNELS' | 'FELLOW_STUDENTS' | 'FRIEND_REQUESTS' | 'DIRECT_MESSAGES'>(initialTab);
   
+  // Responsive Mobile & Tablet selection states:
+  // 'SELECTION' = displays list/grid selection for classroom channels or friends
+  // 'CONVERSATION' = displays active chat room
+  const [mobileActiveView, setMobileActiveView] = useState<'SELECTION' | 'CONVERSATION'>('SELECTION');
+  const [selectionViewMode, setSelectionViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectionSearchQuery, setSelectionSearchQuery] = useState('');
+
   // Channels and selection
   const [channels, setChannels] = useState<Channel[]>([]);
   const [activeChannelId, setActiveChannelId] = useState<string>('');
@@ -637,7 +648,36 @@ export default function CommunityChatEngine({ portalRole, initialTab = 'CHANNELS
     setActiveChannelId(friend.dmChannelId);
     setActiveChannelTitle(`Encrypted Direct Chat with ${otherUser.name}`);
     setActiveTab('DIRECT_MESSAGES');
+    setMobileActiveView('CONVERSATION');
   };
+
+  // Select Classroom Channel
+  const handleSelectChannel = (chan: Channel) => {
+    setActiveChannelId(chan.id);
+    setActiveChannelTitle(chan.name);
+    setActiveDirectTarget(null);
+    setActiveTab('CHANNELS');
+    setMobileActiveView('CONVERSATION');
+  };
+
+  // Switch tab with view reset
+  const handleTabSwitch = (newTab: 'CHANNELS' | 'FELLOW_STUDENTS' | 'FRIEND_REQUESTS' | 'DIRECT_MESSAGES') => {
+    setActiveTab(newTab);
+    setMobileActiveView('SELECTION');
+    setSelectionSearchQuery('');
+  };
+
+  const filteredChannels = channels.filter(c => 
+    c.name.toLowerCase().includes(selectionSearchQuery.toLowerCase()) ||
+    (c.description && c.description.toLowerCase().includes(selectionSearchQuery.toLowerCase())) ||
+    (c.category && c.category.toLowerCase().includes(selectionSearchQuery.toLowerCase()))
+  );
+
+  const filteredFriends = friendsList.filter(f =>
+    f.user.name?.toLowerCase().includes(selectionSearchQuery.toLowerCase()) ||
+    (f.user.studentId && f.user.studentId.toLowerCase().includes(selectionSearchQuery.toLowerCase())) ||
+    (f.user.department && f.user.department.toLowerCase().includes(selectionSearchQuery.toLowerCase()))
+  );
 
   const filteredStudents = fellowStudents.filter(s => 
     s.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
@@ -647,7 +687,7 @@ export default function CommunityChatEngine({ portalRole, initialTab = 'CHANNELS
   );
 
   return (
-    <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden flex flex-col h-[780px] max-w-7xl mx-auto relative">
+    <div className="bg-white rounded-2xl sm:rounded-3xl border border-zinc-200 shadow-sm overflow-hidden flex flex-col h-[calc(100dvh-130px)] min-h-[580px] md:h-[780px] max-w-7xl mx-auto relative">
       {/* Action Toast Banner */}
       {chatToast && (
         <div className={`mx-6 mt-3 px-4 py-3 rounded-2xl border flex items-center justify-between shadow-xs transition-all z-20 animate-in fade-in slide-in-from-top-2 ${
@@ -695,7 +735,7 @@ export default function CommunityChatEngine({ portalRole, initialTab = 'CHANNELS
         {/* View Mode Switcher */}
         <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-2xl p-1 text-xs">
           <button
-            onClick={() => setActiveTab('CHANNELS')}
+            onClick={() => handleTabSwitch('CHANNELS')}
             className={`px-3.5 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
               activeTab === 'CHANNELS' 
                 ? 'bg-purple-600 text-white shadow-xs' 
@@ -709,7 +749,7 @@ export default function CommunityChatEngine({ portalRole, initialTab = 'CHANNELS
           {portalRole === 'STUDENT' && (
             <>
               <button
-                onClick={() => setActiveTab('FELLOW_STUDENTS')}
+                onClick={() => handleTabSwitch('FELLOW_STUDENTS')}
                 className={`px-3.5 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
                   activeTab === 'FELLOW_STUDENTS' 
                     ? 'bg-purple-600 text-white shadow-xs' 
@@ -721,7 +761,7 @@ export default function CommunityChatEngine({ portalRole, initialTab = 'CHANNELS
               </button>
 
               <button
-                onClick={() => setActiveTab('FRIEND_REQUESTS')}
+                onClick={() => handleTabSwitch('FRIEND_REQUESTS')}
                 className={`px-3.5 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 relative ${
                   activeTab === 'FRIEND_REQUESTS' 
                     ? 'bg-purple-600 text-white shadow-xs' 
@@ -740,7 +780,7 @@ export default function CommunityChatEngine({ portalRole, initialTab = 'CHANNELS
           )}
 
           <button
-            onClick={() => setActiveTab('DIRECT_MESSAGES')}
+            onClick={() => handleTabSwitch('DIRECT_MESSAGES')}
             className={`px-3.5 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
               activeTab === 'DIRECT_MESSAGES' 
                 ? 'bg-purple-600 text-white shadow-xs' 
@@ -763,8 +803,363 @@ export default function CommunityChatEngine({ portalRole, initialTab = 'CHANNELS
         {/* TAB 1 & 4: CHAT ROOM INTERFACE (CHANNELS or DIRECT MESSAGES) */}
         {(activeTab === 'CHANNELS' || activeTab === 'DIRECT_MESSAGES') && (
           <>
-            {/* Sidebar Channel / DM Selector */}
-            <div className="w-72 bg-zinc-50 border-r border-zinc-200 flex flex-col shrink-0">
+            {/* MOBILE & TABLET: Interactive List / Grid Selection View */}
+            <div className={`flex-1 flex-col overflow-hidden bg-zinc-50 ${mobileActiveView === 'SELECTION' ? 'flex lg:hidden' : 'hidden'}`}>
+              {/* Selection Header */}
+              <div className="p-4 border-b border-zinc-200 bg-white">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-purple-50 text-purple-600">
+                      {activeTab === 'CHANNELS' ? <GraduationCap className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                    </span>
+                    <div>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-800">
+                        {activeTab === 'CHANNELS' ? 'Classroom Channels' : 'Chat with a Friend'}
+                      </h3>
+                      <p className="text-[11px] text-zinc-500">
+                        {activeTab === 'CHANNELS' 
+                          ? `${filteredChannels.length} classroom discussion channels` 
+                          : `${filteredFriends.length} verified end-to-end encrypted chats`}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* View Mode Toggle: Grid or List */}
+                  <div className="flex items-center bg-zinc-100 p-0.5 rounded-xl border border-zinc-200">
+                    <button
+                      type="button"
+                      onClick={() => setSelectionViewMode('grid')}
+                      className={`p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all ${
+                        selectionViewMode === 'grid' 
+                          ? 'bg-white text-purple-700 shadow-2xs font-bold' 
+                          : 'text-zinc-500 hover:text-zinc-900'
+                      }`}
+                      title="Grid Selection View"
+                    >
+                      <LayoutGrid className="h-3.5 w-3.5" />
+                      <span className="text-[10px] hidden sm:inline">Grid</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectionViewMode('list')}
+                      className={`p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all ${
+                        selectionViewMode === 'list' 
+                          ? 'bg-white text-purple-700 shadow-2xs font-bold' 
+                          : 'text-zinc-500 hover:text-zinc-900'
+                      }`}
+                      title="List Selection View"
+                    >
+                      <List className="h-3.5 w-3.5" />
+                      <span className="text-[10px] hidden sm:inline">List</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Search & Actions Bar */}
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
+                    <input
+                      type="text"
+                      value={selectionSearchQuery}
+                      onChange={(e) => setSelectionSearchQuery(e.target.value)}
+                      placeholder={activeTab === 'CHANNELS' ? "Search classroom channels..." : "Search friends by name or ID..."}
+                      className="w-full pl-8 pr-3 py-1.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs text-zinc-900 placeholder-zinc-400 focus:outline-hidden focus:ring-2 focus:ring-purple-600/20 focus:border-purple-600"
+                    />
+                    {selectionSearchQuery && (
+                      <button
+                        onClick={() => setSelectionSearchQuery('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 p-0.5"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+
+                  {activeTab === 'CHANNELS' && canManageChannels && (
+                    <button
+                      onClick={() => setIsCreateChannelModalOpen(true)}
+                      className="px-2.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1 shrink-0 shadow-2xs cursor-pointer"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>New</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Selection Content (Grid or List) */}
+              <div className="flex-1 overflow-y-auto p-3 sm:p-4">
+                {activeTab === 'CHANNELS' ? (
+                  filteredChannels.length === 0 ? (
+                    <div className="p-8 text-center rounded-2xl bg-white border border-dashed border-zinc-200">
+                      <GraduationCap className="h-10 w-10 text-zinc-300 mx-auto mb-2" />
+                      <p className="text-xs font-bold text-zinc-700">No Classroom Channels Found</p>
+                      <p className="text-[11px] text-zinc-400 mt-1 max-w-xs mx-auto">
+                        {selectionSearchQuery ? `No channels matching "${selectionSearchQuery}"` : 'No classroom channels are available at this time.'}
+                      </p>
+                      {canManageChannels && (
+                        <button
+                          onClick={() => setIsCreateChannelModalOpen(true)}
+                          className="mt-3 px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          <span>Create Classroom Channel</span>
+                        </button>
+                      )}
+                    </div>
+                  ) : selectionViewMode === 'grid' ? (
+                    /* GRID SELECTION MODE FOR CLASSROOM CHANNELS */
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {filteredChannels.map((chan) => {
+                        const isSelected = activeChannelId === chan.id;
+                        const isDeletable = canManageChannels || Boolean(chan.createdBy && user?.id && chan.createdBy === user.id);
+                        return (
+                          <div
+                            key={chan.id}
+                            onClick={() => handleSelectChannel(chan)}
+                            className={`group relative p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between shadow-2xs hover:shadow-md ${
+                              isSelected
+                                ? 'bg-purple-600 text-white border-purple-600 ring-2 ring-purple-600/30'
+                                : 'bg-white hover:bg-purple-50/30 text-zinc-800 border-zinc-200/90 hover:border-purple-300'
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-start justify-between gap-2 mb-2.5">
+                                <div className={`p-2 rounded-xl shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-purple-50 text-purple-600'}`}>
+                                  <GraduationCap className="h-5 w-5" />
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${isSelected ? 'bg-white/20 text-white' : 'bg-zinc-100 text-zinc-600'}`}>
+                                    {chan.category || 'Classroom'}
+                                  </span>
+                                  {isDeletable && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => openDeleteChannelModal(chan.id, chan.name, e)}
+                                      disabled={isDeletingChannel && channelToDelete?.id === chan.id}
+                                      className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                        isSelected 
+                                          ? 'hover:bg-red-600 text-white/80 hover:text-white' 
+                                          : 'hover:bg-red-50 text-zinc-400 hover:text-red-600'
+                                      }`}
+                                      title={`Delete channel #${chan.name}`}
+                                    >
+                                      {isDeletingChannel && channelToDelete?.id === chan.id ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                      ) : (
+                                        <Trash2 className="h-3 w-3" />
+                                      )}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              <h4 className={`text-sm font-bold truncate ${isSelected ? 'text-white' : 'text-zinc-900 group-hover:text-purple-700'}`}>
+                                #{chan.name}
+                              </h4>
+                              <p className={`text-xs mt-1 line-clamp-2 ${isSelected ? 'text-purple-100' : 'text-zinc-500'}`}>
+                                {chan.description || 'Live lecture discussions and peer study'}
+                              </p>
+                            </div>
+
+                            <div className="mt-3.5 pt-2.5 border-t border-zinc-100/50 flex items-center justify-between text-xs font-bold">
+                              <span className={isSelected ? 'text-purple-100' : 'text-purple-600'}>
+                                {isSelected ? 'Currently Active' : 'Open Channel'}
+                              </span>
+                              <ArrowRight className={`h-3.5 w-3.5 transition-transform group-hover:translate-x-1 ${isSelected ? 'text-white' : 'text-purple-600'}`} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    /* LIST SELECTION MODE FOR CLASSROOM CHANNELS */
+                    <div className="space-y-2">
+                      {filteredChannels.map((chan) => {
+                        const isSelected = activeChannelId === chan.id;
+                        const isDeletable = canManageChannels || Boolean(chan.createdBy && user?.id && chan.createdBy === user.id);
+                        return (
+                          <div
+                            key={chan.id}
+                            onClick={() => handleSelectChannel(chan)}
+                            className={`group relative p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 shadow-2xs hover:shadow-xs ${
+                              isSelected
+                                ? 'bg-purple-600 text-white border-purple-600'
+                                : 'bg-white hover:bg-zinc-100 text-zinc-800 border-zinc-200/80 hover:border-zinc-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 overflow-hidden flex-1">
+                              <div className={`p-2 rounded-xl shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-purple-50 text-purple-600'}`}>
+                                <GraduationCap className="h-4 w-4" />
+                              </div>
+                              <div className="overflow-hidden flex-1">
+                                <div className="flex items-center gap-2">
+                                  <p className={`text-xs font-bold truncate ${isSelected ? 'text-white' : 'text-zinc-900'}`}>
+                                    #{chan.name}
+                                  </p>
+                                  <span className={`text-[10px] px-1.5 py-0.2 rounded font-semibold ${isSelected ? 'bg-white/20 text-white' : 'bg-zinc-100 text-zinc-600'}`}>
+                                    {chan.category || 'Class'}
+                                  </span>
+                                </div>
+                                <p className={`text-[11px] truncate mt-0.5 ${isSelected ? 'text-purple-100' : 'text-zinc-500'}`}>
+                                  {chan.description}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              {isDeletable && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => openDeleteChannelModal(chan.id, chan.name, e)}
+                                  disabled={isDeletingChannel && channelToDelete?.id === chan.id}
+                                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                    isSelected 
+                                      ? 'hover:bg-red-600 text-white/80 hover:text-white' 
+                                      : 'hover:bg-red-50 text-zinc-400 hover:text-red-600'
+                                  }`}
+                                  title={`Delete channel #${chan.name}`}
+                                >
+                                  {isDeletingChannel && channelToDelete?.id === chan.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  )}
+                                </button>
+                              )}
+                              <ArrowRight className={`h-4 w-4 transition-transform group-hover:translate-x-1 ${isSelected ? 'text-white' : 'text-purple-600'}`} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )
+                ) : (
+                  /* DIRECT MESSAGES (CHAT WITH A FRIEND) */
+                  friendsList.length === 0 ? (
+                    <div className="p-8 text-center rounded-2xl bg-white border border-dashed border-zinc-200">
+                      <Users className="h-10 w-10 text-zinc-300 mx-auto mb-2" />
+                      <p className="text-xs font-bold text-zinc-700">No Friends Added Yet</p>
+                      <p className="text-[11px] text-zinc-400 mt-1 max-w-xs mx-auto">
+                        Connect with fellow students to start end-to-end encrypted 1-on-1 private messaging!
+                      </p>
+                      <button
+                        onClick={() => handleTabSwitch('FELLOW_STUDENTS')}
+                        className="mt-3.5 px-4 py-2 bg-purple-600 text-white rounded-xl text-xs font-bold shadow-xs hover:bg-purple-700 transition-colors cursor-pointer"
+                      >
+                        Browse Fellow Students
+                      </button>
+                    </div>
+                  ) : filteredFriends.length === 0 ? (
+                    <div className="p-6 text-center text-zinc-400">
+                      <p className="text-xs font-bold text-zinc-700">No Matching Friends Found</p>
+                      <p className="text-[11px] text-zinc-400 mt-1">Try another search term.</p>
+                    </div>
+                  ) : selectionViewMode === 'grid' ? (
+                    /* GRID SELECTION MODE FOR CHAT WITH A FRIEND */
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {filteredFriends.map((f) => {
+                        const isSelected = activeChannelId === f.dmChannelId;
+                        return (
+                          <div
+                            key={f.requestId}
+                            onClick={() => startDirectChatWithFriend(f)}
+                            className={`group relative p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between shadow-2xs hover:shadow-md ${
+                              isSelected
+                                ? 'bg-purple-600 text-white border-purple-600 ring-2 ring-purple-600/30'
+                                : 'bg-white hover:bg-purple-50/30 text-zinc-800 border-zinc-200/90 hover:border-purple-300'
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-start justify-between mb-3">
+                                <div className="relative">
+                                  <div className={`h-11 w-11 rounded-full flex items-center justify-center font-bold text-sm shadow-xs ${
+                                    isSelected ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-700'
+                                  }`}>
+                                    {f.user.name?.charAt(0).toUpperCase()}
+                                  </div>
+                                  <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></span>
+                                </div>
+                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 ${
+                                  isSelected ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                }`}>
+                                  <Lock className="h-2.5 w-2.5" /> Encrypted
+                                </span>
+                              </div>
+
+                              <h4 className={`text-sm font-bold truncate ${isSelected ? 'text-white' : 'text-zinc-900 group-hover:text-purple-700'}`}>
+                                {f.user.name}
+                              </h4>
+                              <p className={`text-xs font-mono mt-0.5 ${isSelected ? 'text-purple-200' : 'text-zinc-400'}`}>
+                                {f.user.studentId || 'Verified Friend'}
+                              </p>
+                              {f.user.department && (
+                                <p className={`text-xs mt-1 truncate ${isSelected ? 'text-purple-100' : 'text-zinc-500'}`}>
+                                  {f.user.department}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="mt-4 pt-2.5 border-t border-zinc-100/50 flex items-center justify-between text-xs font-bold">
+                              <span className={isSelected ? 'text-purple-100' : 'text-purple-600'}>
+                                {isSelected ? 'Currently Active' : 'Start Chat'}
+                              </span>
+                              <ArrowRight className={`h-3.5 w-3.5 transition-transform group-hover:translate-x-1 ${isSelected ? 'text-white' : 'text-purple-600'}`} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    /* LIST SELECTION MODE FOR CHAT WITH A FRIEND */
+                    <div className="space-y-2">
+                      {filteredFriends.map((f) => {
+                        const isSelected = activeChannelId === f.dmChannelId;
+                        return (
+                          <div
+                            key={f.requestId}
+                            onClick={() => startDirectChatWithFriend(f)}
+                            className={`group relative p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 shadow-2xs hover:shadow-xs ${
+                              isSelected
+                                ? 'bg-purple-600 text-white border-purple-600'
+                                : 'bg-white hover:bg-zinc-100 text-zinc-800 border-zinc-200/80 hover:border-zinc-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 overflow-hidden flex-1">
+                              <div className="relative shrink-0">
+                                <div className={`h-9 w-9 rounded-full flex items-center justify-center font-bold text-xs ${
+                                  isSelected ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-700'
+                                }`}>
+                                  {f.user.name?.charAt(0).toUpperCase()}
+                                </div>
+                                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full"></span>
+                              </div>
+                              <div className="overflow-hidden flex-1">
+                                <p className={`text-xs font-bold truncate ${isSelected ? 'text-white' : 'text-zinc-900'}`}>
+                                  {f.user.name}
+                                </p>
+                                <span className={`text-[10px] font-mono block ${isSelected ? 'text-purple-100' : 'text-zinc-400'}`}>
+                                  {f.user.studentId || 'Verified Friend'} • {f.user.department || 'Medicine'}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Lock className={`h-3.5 w-3.5 ${isSelected ? 'text-white' : 'text-zinc-300'}`} />
+                              <ArrowRight className={`h-4 w-4 transition-transform group-hover:translate-x-1 ${isSelected ? 'text-white' : 'text-purple-600'}`} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+
+            {/* DESKTOP SIDEBAR: Always visible on large screens */}
+            <div className="hidden lg:flex w-72 bg-zinc-50 border-r border-zinc-200 flex-col shrink-0">
               <div className="p-4 border-b border-zinc-200 bg-white">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
@@ -874,7 +1269,7 @@ export default function CommunityChatEngine({ portalRole, initialTab = 'CHANNELS
                         Go to "Fellow Students" tab to connect and start 1-on-1 encrypted chats!
                       </p>
                       <button
-                        onClick={() => setActiveTab('FELLOW_STUDENTS')}
+                        onClick={() => handleTabSwitch('FELLOW_STUDENTS')}
                         className="mt-3 px-3 py-1.5 bg-purple-600 text-white rounded-xl text-xs font-bold"
                       >
                         Browse Students
@@ -924,20 +1319,31 @@ export default function CommunityChatEngine({ portalRole, initialTab = 'CHANNELS
               </div>
             </div>
 
-            {/* Main Chat Conversation Stage */}
-            <div className="flex-1 flex flex-col bg-zinc-50/50">
+            {/* Main Chat Conversation Stage: Visible when conversation active on mobile, or always on desktop */}
+            <div className={`flex-1 flex-col bg-zinc-50/50 ${mobileActiveView === 'CONVERSATION' ? 'flex' : 'hidden lg:flex'}`}>
               {/* Chat Channel Header */}
-              <div className="px-6 py-3.5 bg-white border-b border-zinc-200 flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="h-3 w-3 rounded-full bg-emerald-500 animate-pulse"></div>
-                  <div>
-                    <h3 className="text-sm font-bold text-zinc-900 flex items-center gap-2">
-                      {activeChannelTitle}
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-50 text-purple-700 border border-purple-200">
+              <div className="px-4 sm:px-6 py-3.5 bg-white border-b border-zinc-200 flex items-center justify-between">
+                <div className="flex items-center space-x-2 sm:space-x-3 overflow-hidden">
+                  {/* Back to Selection button on Mobile & Tablet */}
+                  <button
+                    type="button"
+                    onClick={() => setMobileActiveView('SELECTION')}
+                    className="lg:hidden inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold text-xs transition-colors cursor-pointer mr-1 shrink-0 border border-purple-200/60 shadow-2xs"
+                    title="Back to channel/chat selection"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    <span>{activeTab === 'CHANNELS' ? 'Classrooms' : 'Friends'}</span>
+                  </button>
+
+                  <div className="h-3 w-3 rounded-full bg-emerald-500 animate-pulse shrink-0"></div>
+                  <div className="overflow-hidden">
+                    <h3 className="text-sm font-bold text-zinc-900 flex items-center gap-2 truncate">
+                      <span className="truncate">{activeChannelTitle}</span>
+                      <span className="hidden sm:inline-flex px-2 py-0.5 rounded text-[10px] font-mono bg-purple-50 text-purple-700 border border-purple-200 shrink-0">
                         🔒 End-to-End Encrypted
                       </span>
                     </h3>
-                    <p className="text-[11px] text-zinc-500">
+                    <p className="text-[11px] text-zinc-500 truncate">
                       Messages are encrypted locally before leaving your browser.
                     </p>
                   </div>

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuthStore } from './client/store/authStore';
 import { useSettingsStore } from './client/store/settingsStore';
 
 // Components
 import GlobalLoader from './client/components/shared/GlobalLoader';
+import ErrorBoundary from './client/components/shared/ErrorBoundary';
 
 // Layouts
 import PublicLayout from './client/components/layouts/PublicLayout';
@@ -23,6 +24,7 @@ import Pricing from './client/pages/public/Pricing';
 import Contact from './client/pages/public/Contact';
 import AdminLogin from './client/pages/public/AdminLogin';
 import SuperAdminLogin from './client/pages/public/SuperAdminLogin';
+import NotFound from './client/pages/public/NotFound';
 
 // Protected Student Pages
 import StudentDashboard from './client/pages/protected/StudentDashboard';
@@ -111,7 +113,7 @@ export default function App() {
   }, [checkAuth, fetchSettings]);
 
   return (
-    <>
+    <ErrorBoundary>
       <AnimatePresence mode="wait">
         {!showApp && <GlobalLoader key="loader" />}
       </AnimatePresence>
@@ -189,11 +191,31 @@ export default function App() {
                   <Route path="settings" element={<SystemSettings />} />
                 </Route>
               </Route>
+
+              {/* Helpful Route Aliases to Prevent Broken Search/Links */}
+              <Route path="/superadmin" element={<Navigate to="/super-admin" replace />} />
+              <Route path="/superadmin/*" element={<Navigate to="/super-admin" replace />} />
+              <Route path="/super-admin-login" element={<Navigate to="/super-admin/login" replace />} />
+              <Route path="/superadmin-login" element={<Navigate to="/super-admin/login" replace />} />
+              <Route path="/super_admin" element={<Navigate to="/super-admin" replace />} />
+              <Route path="/super_admin/*" element={<Navigate to="/super-admin" replace />} />
+              <Route path="/adminlogin" element={<Navigate to="/admin/login" replace />} />
+              <Route path="/admin-login" element={<Navigate to="/admin/login" replace />} />
+              <Route path="/admin/dashboard" element={<Navigate to="/admin" replace />} />
+              <Route path="/super-admin/dashboard" element={<Navigate to="/super-admin" replace />} />
+              <Route path="/student" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/student/*" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/student-login" element={<Navigate to="/login" replace />} />
+
+              {/* Universal Catch-all Route: Renders friendly page instead of blank space */}
+              <Route element={<PublicLayout />}>
+                <Route path="*" element={<NotFound />} />
+              </Route>
             </Routes>
           </BrowserRouter>
         )}
       </motion.div>
-    </>
+    </ErrorBoundary>
   );
 }
 
