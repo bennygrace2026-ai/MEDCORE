@@ -1,50 +1,51 @@
 /**
  * Official Brand Assets & Fallbacks for MedCore Academy (UNI9JA MEDIA).
- * Guaranteed to be available offline, during reloads, and across all pages with zero latency.
+ * Guaranteed to be available offline, during reloads, and across all pages and IP addresses with zero latency.
  */
+
+// Default brand logo is null: only uploaded logo PNG or image will display
+export const DEFAULT_BRAND_LOGO: string | null = null;
 
 // Static storage key ensuring Super Admin uploaded logos never delete on refresh or reload
 export const SUPER_ADMIN_STATIC_LOGO_KEY = 'medcore_superadmin_uploaded_logo';
 
 /**
- * Checks if a provided logo was genuinely uploaded by the Super Admin.
- * Strictly rejects:
- * - default hardcoded SVGs (/assets/brand/medcore-logo.svg)
- * - synthetic crest data URIs generated automatically
- * - dummy 1x1 test pixels
- * - null / undefined / empty values
+ * Checks if a provided logo string is a valid, displayable image source.
+ * Accepts:
+ * - Base64 Data URIs (data:image/...)
+ * - Local upload paths (/uploads/logos/...)
+ * - Remote URLs (http://, https://)
+ * - Blob URLs (blob:...)
+ * Rejects 1x1 transparent dummy pixels, empty/null strings, and deleted system default SVGs.
  */
-export function isSuperAdminUploadedLogo(url: string | null | undefined): boolean {
+export function isValidBrandLogo(url: string | null | undefined): boolean {
   if (!url || typeof url !== 'string') return false;
   const trimmed = url.trim();
   if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return false;
   
-  // Strictly reject default system SVG emblems
-  if (trimmed.includes('medcore-logo.svg') || trimmed.includes('/assets/brand/medcore-logo.svg')) {
-    return false;
-  }
-
-  // Strictly reject synthetic crest signatures or default generated texts
-  if (
-    trimmed.includes('PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2MDAgNjAwIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIj4KICA8ZGVmcz4KICAgIDwhLS0gQ2xpcCBwYXRoIGZvciB0aGUgNCBxdWFkcmFudHMgaW5zaWRlIHRoZSBzaGllbGQgLS0+') ||
-    trimmed.includes('UNI9JA MEDIA HUB') ||
-    trimmed.includes('MEDCORE ACADEMY')
-  ) {
-    return false;
-  }
-
-  // Strictly reject known 1x1 transparent dummy pngs
+  // Reject dummy 1x1 test pixels
   if (trimmed.includes('iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB') || trimmed.includes('AAAAABJRU5ErkJggg==')) {
     return false;
   }
 
-  // Genuine uploaded images from Super Admin: Base64 data URI or uploaded path (/uploads/...) or URL
+  // Reject the deleted system default emblem
+  if (trimmed.includes('medcore-logo.svg') || trimmed.includes('/assets/brand/')) {
+    return false;
+  }
+
+  // Base64 data URI
   if (trimmed.startsWith('data:image/')) {
     const parts = trimmed.split(',');
     return parts.length > 1 && parts[1].trim().length > 20;
   }
 
-  if (trimmed.startsWith('/uploads/') || trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('blob:')) {
+  // Standard paths and URLs
+  if (
+    trimmed.startsWith('/uploads/logos/') || 
+    trimmed.startsWith('http://') || 
+    trimmed.startsWith('https://') || 
+    trimmed.startsWith('blob:')
+  ) {
     return trimmed.length >= 6;
   }
 
@@ -52,21 +53,33 @@ export function isSuperAdminUploadedLogo(url: string | null | undefined): boolea
 }
 
 /**
- * Validates a brand logo URL.
+ * Checks if a provided logo is a custom Super Admin uploaded asset.
  */
-export function isValidBrandLogo(url: string | null | undefined): boolean {
-  return isSuperAdminUploadedLogo(url);
+export function isCustomUploadedLogo(url: string | null | undefined): boolean {
+  return isValidBrandLogo(url);
+}
+
+/**
+ * Backward compatibility alias for isSuperAdminUploadedLogo.
+ */
+export function isSuperAdminUploadedLogo(url: string | null | undefined): boolean {
+  return isValidBrandLogo(url);
 }
 
 /**
  * Static getter for Super Admin uploaded logo from browser storage.
- * Guarantees that the logo will stay and not delete when the website is refreshed or reloaded.
+ * Guarantees that only genuine uploaded logos persist, clearing any old default SVGs.
  */
 export function getSuperAdminStaticLogo(): string | null {
   try {
     if (typeof window === 'undefined') return null;
     const stored = localStorage.getItem(SUPER_ADMIN_STATIC_LOGO_KEY) || localStorage.getItem('medcore_master_logo');
-    if (isSuperAdminUploadedLogo(stored)) {
+    if (stored && !isValidBrandLogo(stored)) {
+      localStorage.removeItem(SUPER_ADMIN_STATIC_LOGO_KEY);
+      localStorage.removeItem('medcore_master_logo');
+      return null;
+    }
+    if (isValidBrandLogo(stored)) {
       return stored;
     }
   } catch {}
@@ -79,7 +92,7 @@ export function getSuperAdminStaticLogo(): string | null {
 export function setSuperAdminStaticLogo(logo: string | null): void {
   try {
     if (typeof window === 'undefined') return;
-    if (logo && isSuperAdminUploadedLogo(logo)) {
+    if (logo && isValidBrandLogo(logo)) {
       localStorage.setItem(SUPER_ADMIN_STATIC_LOGO_KEY, logo);
       localStorage.setItem('medcore_master_logo', logo);
     } else {
@@ -91,17 +104,15 @@ export function setSuperAdminStaticLogo(logo: string | null): void {
 
 /**
  * Resolves brand logo.
- * ONLY returns a logo if it was genuinely uploaded by Super Admin.
- * Returns null if no Super Admin logo has been uploaded.
- * NEVER displays or falls back to any un-uploaded logo!
+ * Returns the uploaded logo URL/data URI if valid, or null if no logo has been uploaded.
+ * Only uploaded logo PNG or image will display!
  */
 export function getResolvedBrandLogo(url: string | null | undefined): string | null {
-  if (isSuperAdminUploadedLogo(url)) {
+  if (isValidBrandLogo(url)) {
     return url as string;
   }
-  // Check static persistent storage before returning null
   const staticLogo = getSuperAdminStaticLogo();
-  if (staticLogo) {
+  if (staticLogo && isValidBrandLogo(staticLogo)) {
     return staticLogo;
   }
   return null;

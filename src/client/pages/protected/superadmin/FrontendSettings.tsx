@@ -1,9 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { useAuthStore } from '../../../store/authStore';
-import { LayoutTemplate, Save, MonitorPlay, Image as ImageIcon, Upload, Globe, CheckCircle2, Sparkles, RefreshCw, Layers, Trash2 } from 'lucide-react';
+import { LayoutTemplate, Save, MonitorPlay, Image as ImageIcon, Upload, Globe, CheckCircle2, Sparkles, RefreshCw, Layers, Trash2, ShieldCheck } from 'lucide-react';
 import GlobalBrandLogo from '../../../components/shared/GlobalBrandLogo';
-import { getResolvedBrandLogo, isSuperAdminUploadedLogo, setSuperAdminStaticLogo, getSuperAdminStaticLogo } from '../../../constants/brandAssets';
+import { 
+  getResolvedBrandLogo, 
+  isValidBrandLogo, 
+  isCustomUploadedLogo,
+  setSuperAdminStaticLogo, 
+  getSuperAdminStaticLogo
+} from '../../../constants/brandAssets';
 
 export default function FrontendSettings() {
   const { 
@@ -131,7 +137,7 @@ export default function FrontendSettings() {
   };
 
   const handleRemoveGlobalLogo = async () => {
-    if (!window.confirm('Are you sure you want to remove the uploaded logo? No logo will be displayed on any portal until a new one is uploaded.')) {
+    if (!window.confirm('Delete this logo from the system totally? Only uploaded logo PNG or image will display.')) {
       return;
     }
     const activeToken = token || localStorage.getItem('token') || '';
@@ -148,17 +154,17 @@ export default function FrontendSettings() {
         setGlobalFile(null);
         setGlobalPreview(null);
         setPreviews({
-          heroLogo: null,
-          registrationLogo: null,
-          loginLogo: null
+          heroLogo: '',
+          registrationLogo: '',
+          loginLogo: ''
         });
-        setSyncFeedback('✓ Uploaded logo removed permanently. No logo will be displayed.');
+        setSyncFeedback('✓ Logo deleted totally from the system. Only uploaded logo PNG or image will display.');
         const { fetchSettings } = useSettingsStore.getState();
         await fetchSettings();
         setTimeout(() => setSyncFeedback(null), 5000);
       }
     } catch (err: any) {
-      setSyncFeedback('Failed to remove logo: ' + (err.message || 'Error'));
+      setSyncFeedback('Failed to delete logo: ' + (err.message || 'Error'));
     }
   };
 
@@ -426,83 +432,129 @@ export default function FrontendSettings() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                {/* 1. Public Nav Preview (Light) */}
-                <div className="bg-white text-zinc-900 p-3 rounded-xl border border-zinc-200 shadow-sm flex flex-col justify-between h-24">
-                  <div className="flex items-center space-x-2">
-                    {globalPreview ? (
-                      <img src={globalPreview} alt="Public Preview" className="h-7 w-7 object-contain rounded" />
-                    ) : (
-                      <div className="h-7 w-7 rounded bg-red-100 flex items-center justify-center text-red-600 text-xs font-bold">M</div>
-                    )}
-                    <div className="leading-tight">
-                      <div className="text-[11px] font-black uppercase italic">UNI9JA MEDIA</div>
-                      <div className="text-[8px] text-amber-600 uppercase font-bold tracking-wider">MEDCORE</div>
-                    </div>
-                  </div>
-                  <div className="text-[9px] font-semibold text-zinc-400 border-t border-zinc-100 pt-1 flex justify-between">
-                    <span>Public Navbar</span>
-                    <span className="text-emerald-600 font-bold">Ready</span>
-                  </div>
-                </div>
-
-                {/* 2. Student Sidebar Preview (Dark) */}
-                <div className="bg-zinc-900 text-zinc-200 p-3 rounded-xl border border-zinc-800 flex flex-col justify-between h-24">
-                  <div className="flex items-center space-x-2">
-                    {globalPreview ? (
-                      <img src={globalPreview} alt="Student Preview" className="h-7 w-7 object-contain rounded" />
-                    ) : (
-                      <div className="h-7 w-7 rounded bg-red-950 flex items-center justify-center text-red-400 text-xs font-bold">M</div>
-                    )}
-                    <div className="leading-tight">
-                      <div className="text-[11px] font-black uppercase italic text-white">UNI9JA MEDIA</div>
-                      <div className="text-[8px] text-amber-400 uppercase font-bold tracking-wider">STUDENT</div>
-                    </div>
-                  </div>
-                  <div className="text-[9px] font-semibold text-zinc-500 border-t border-zinc-800/80 pt-1 flex justify-between">
-                    <span>Student Portal</span>
-                    <span className="text-emerald-400 font-bold">Ready</span>
-                  </div>
-                </div>
-
-                {/* 3. Admin Portal Preview */}
-                <div className="bg-zinc-900 text-zinc-200 p-3 rounded-xl border border-blue-900/40 flex flex-col justify-between h-24">
-                  <div className="flex items-center space-x-2">
-                    {globalPreview ? (
-                      <img src={globalPreview} alt="Admin Preview" className="h-7 w-7 object-contain rounded" />
-                    ) : (
-                      <div className="h-7 w-7 rounded bg-blue-950 flex items-center justify-center text-blue-400 text-xs font-bold">A</div>
-                    )}
-                    <div className="leading-tight">
-                      <div className="text-[11px] font-black uppercase italic text-white">ADMIN PORTAL</div>
-                      <div className="text-[8px] text-blue-400 uppercase font-bold tracking-wider">SUPERVISOR</div>
-                    </div>
-                  </div>
-                  <div className="text-[9px] font-semibold text-zinc-500 border-t border-zinc-800/80 pt-1 flex justify-between">
-                    <span>Admin Portal</span>
-                    <span className="text-emerald-400 font-bold">Ready</span>
-                  </div>
-                </div>
-
-                {/* 4. Super Admin Portal Preview */}
-                <div className="bg-zinc-900 text-zinc-200 p-3 rounded-xl border border-purple-900/40 flex flex-col justify-between h-24">
-                  <div className="flex items-center space-x-2">
-                    {globalPreview ? (
-                      <img src={globalPreview} alt="SuperAdmin Preview" className="h-7 w-7 object-contain rounded" />
-                    ) : (
-                      <div className="h-7 w-7 rounded bg-purple-950 flex items-center justify-center text-purple-400 text-xs font-bold">S</div>
-                    )}
-                    <div className="leading-tight">
-                      <div className="text-[11px] font-black uppercase italic text-white">SUPER ADMIN</div>
-                      <div className="text-[8px] text-purple-400 uppercase font-bold tracking-wider">SYSTEM CONTROL</div>
-                    </div>
-                  </div>
-                  <div className="text-[9px] font-semibold text-zinc-500 border-t border-zinc-800/80 pt-1 flex justify-between">
-                    <span>Super Admin</span>
-                    <span className="text-emerald-400 font-bold">Ready</span>
-                  </div>
-                </div>
+              {/* Active Brand Status Banner */}
+              <div className="flex items-center justify-between text-xs bg-zinc-900/90 px-3 py-2 rounded-xl border border-zinc-800">
+                <span className="flex items-center gap-2 font-medium text-zinc-300">
+                  <span className={`h-2.5 w-2.5 rounded-full ${isCustomUploadedLogo(frontendSettings?.heroLogo) ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-500'}`}></span>
+                  <span>{isCustomUploadedLogo(frontendSettings?.heroLogo) ? 'Custom Uploaded Logo Active (Visible Everywhere)' : 'No Logo Uploaded (Hidden Everywhere)'}</span>
+                </span>
+                <span className="text-[10px] text-zinc-400 font-mono">Multi-IP Realtime</span>
               </div>
+
+              {(() => {
+                const activeLogo = globalPreview || getResolvedBrandLogo(frontendSettings?.heroLogo);
+                return (
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* 1. Public Nav Preview (Light) */}
+                    <div className="bg-white text-zinc-900 p-3 rounded-xl border border-zinc-200 shadow-sm flex flex-col justify-between h-24">
+                      <div className="flex items-center space-x-2">
+                        {activeLogo ? (
+                          <img 
+                            src={activeLogo} 
+                            alt="Public Preview" 
+                            className="h-7 w-7 object-contain rounded" 
+                          />
+                        ) : (
+                          <div className="h-7 w-7 rounded bg-zinc-100 border border-dashed border-zinc-300 flex items-center justify-center text-[8px] font-bold text-zinc-400">
+                            None
+                          </div>
+                        )}
+                        <div className="leading-tight">
+                          <div className="text-[11px] font-black uppercase italic">UNI9JA MEDIA</div>
+                          <div className="text-[8px] text-amber-600 uppercase font-bold tracking-wider">MEDCORE</div>
+                        </div>
+                      </div>
+                      <div className="text-[9px] font-semibold text-zinc-400 border-t border-zinc-100 pt-1 flex justify-between">
+                        <span>Public Navbar</span>
+                        <span className={activeLogo ? "text-emerald-600 font-bold" : "text-zinc-400"}>
+                          {activeLogo ? "Synchronized" : "Hidden"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 2. Student Sidebar Preview (Dark) */}
+                    <div className="bg-zinc-900 text-zinc-200 p-3 rounded-xl border border-zinc-800 flex flex-col justify-between h-24">
+                      <div className="flex items-center space-x-2">
+                        {activeLogo ? (
+                          <img 
+                            src={activeLogo} 
+                            alt="Student Preview" 
+                            className="h-7 w-7 object-contain rounded" 
+                          />
+                        ) : (
+                          <div className="h-7 w-7 rounded bg-zinc-800 border border-dashed border-zinc-700 flex items-center justify-center text-[8px] font-bold text-zinc-500">
+                            None
+                          </div>
+                        )}
+                        <div className="leading-tight">
+                          <div className="text-[11px] font-black uppercase italic text-white">UNI9JA MEDIA</div>
+                          <div className="text-[8px] text-amber-400 uppercase font-bold tracking-wider">STUDENT</div>
+                        </div>
+                      </div>
+                      <div className="text-[9px] font-semibold text-zinc-500 border-t border-zinc-800/80 pt-1 flex justify-between">
+                        <span>Student Portal</span>
+                        <span className={activeLogo ? "text-emerald-400 font-bold" : "text-zinc-500"}>
+                          {activeLogo ? "Synchronized" : "Hidden"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 3. Admin Portal Preview */}
+                    <div className="bg-zinc-900 text-zinc-200 p-3 rounded-xl border border-blue-900/40 flex flex-col justify-between h-24">
+                      <div className="flex items-center space-x-2">
+                        {activeLogo ? (
+                          <img 
+                            src={activeLogo} 
+                            alt="Admin Preview" 
+                            className="h-7 w-7 object-contain rounded" 
+                          />
+                        ) : (
+                          <div className="h-7 w-7 rounded bg-zinc-800 border border-dashed border-zinc-700 flex items-center justify-center text-[8px] font-bold text-zinc-500">
+                            None
+                          </div>
+                        )}
+                        <div className="leading-tight">
+                          <div className="text-[11px] font-black uppercase italic text-white">ADMIN PORTAL</div>
+                          <div className="text-[8px] text-blue-400 uppercase font-bold tracking-wider">SUPERVISOR</div>
+                        </div>
+                      </div>
+                      <div className="text-[9px] font-semibold text-zinc-500 border-t border-zinc-800/80 pt-1 flex justify-between">
+                        <span>Admin Portal</span>
+                        <span className={activeLogo ? "text-emerald-400 font-bold" : "text-zinc-500"}>
+                          {activeLogo ? "Synchronized" : "Hidden"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 4. Super Admin Portal Preview */}
+                    <div className="bg-zinc-900 text-zinc-200 p-3 rounded-xl border border-purple-900/40 flex flex-col justify-between h-24">
+                      <div className="flex items-center space-x-2">
+                        {activeLogo ? (
+                          <img 
+                            src={activeLogo} 
+                            alt="SuperAdmin Preview" 
+                            className="h-7 w-7 object-contain rounded" 
+                          />
+                        ) : (
+                          <div className="h-7 w-7 rounded bg-zinc-800 border border-dashed border-zinc-700 flex items-center justify-center text-[8px] font-bold text-zinc-500">
+                            None
+                          </div>
+                        )}
+                        <div className="leading-tight">
+                          <div className="text-[11px] font-black uppercase italic text-white">SUPER ADMIN</div>
+                          <div className="text-[8px] text-purple-400 uppercase font-bold tracking-wider">SYSTEM CONTROL</div>
+                        </div>
+                      </div>
+                      <div className="text-[9px] font-semibold text-zinc-500 border-t border-zinc-800/80 pt-1 flex justify-between">
+                        <span>Super Admin</span>
+                        <span className={activeLogo ? "text-emerald-400 font-bold" : "text-zinc-500"}>
+                          {activeLogo ? "Synchronized" : "Hidden"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="pt-2 flex items-center justify-between text-[11px] text-zinc-400 bg-zinc-900/60 p-2.5 rounded-xl border border-zinc-800/70">
                 <span className="flex items-center gap-1.5">

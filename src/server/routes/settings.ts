@@ -74,12 +74,19 @@ const memoryStorage = multer.memoryStorage();
 
 const upload = multer({ 
   storage: memoryStorage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB limit
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
+    const isImage = 
+      file.mimetype.startsWith('image/') || 
+      file.mimetype === 'application/octet-stream' || 
+      file.mimetype === 'text/xml' ||
+      file.mimetype === 'image/svg+xml' ||
+      file.originalname.match(/\.(svg|png|jpe?g|webp|gif|bmp|ico)$/i);
+    
+    if (isImage) {
       cb(null, true);
     } else {
-      cb(new Error('Only images are allowed'));
+      cb(new Error('Only image files (PNG, SVG, JPG, WebP, GIF) are allowed'));
     }
   }
 });
@@ -87,23 +94,45 @@ const upload = multer({
 // Helper to handle both local, Supabase storage, and bulletproof Data URI persistence
 async function processLogoUpload(file: Express.Multer.File, fieldName: string): Promise<string> {
   const ext = path.extname(file.originalname) || '.png';
-  const mime = file.mimetype || 'image/png';
+  let mime = file.mimetype;
+  if (!mime || mime === 'application/octet-stream' || mime === 'text/xml') {
+    if (file.originalname.toLowerCase().endsWith('.svg')) {
+      mime = 'image/svg+xml';
+    } else if (file.originalname.toLowerCase().endsWith('.png')) {
+      mime = 'image/png';
+    } else if (file.originalname.toLowerCase().endsWith('.jpg') || file.originalname.toLowerCase().endsWith('.jpeg')) {
+      mime = 'image/jpeg';
+    } else if (file.originalname.toLowerCase().endsWith('.webp')) {
+      mime = 'image/webp';
+    } else {
+      mime = 'image/png';
+    }
+  }
+
   const dataUri = `data:${mime};base64,${file.buffer.toString('base64')}`;
 
   // 1. Ensure physical upload directory exists and save local file
   const dir = path.join(process.cwd(), 'uploads', 'logos');
   if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+    } catch {}
   }
   const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
   const fileName = `logo-${uniqueSuffix}${ext}`;
   const filePath = path.join(dir, fileName);
-  await fs.promises.writeFile(filePath, file.buffer);
+  try {
+    await fs.promises.writeFile(filePath, file.buffer);
+  } catch (err) {
+    console.warn('Could not write local upload file:', err);
+  }
 
   // Also write persistent copies to public/assets/brand/
   const publicBrandDir = path.join(process.cwd(), 'public', 'assets', 'brand');
   if (!fs.existsSync(publicBrandDir)) {
-    fs.mkdirSync(publicBrandDir, { recursive: true });
+    try {
+      fs.mkdirSync(publicBrandDir, { recursive: true });
+    } catch {}
   }
   const activeBrandPath = path.join(publicBrandDir, `active-master-logo${ext}`);
   const standardBrandPath = path.join(publicBrandDir, 'active-master-logo.png');
@@ -133,23 +162,18 @@ async function processLogoUpload(file: Express.Multer.File, fieldName: string): 
   }
 
   // 3. Storing as Base64 Data URI in DB ensures zero 404s, zero disk wipes on container restarts,
-  // and 100% instant display across all devices, browsers, and reloads without crashing.
-  if (file.size <= 5 * 1024 * 1024) {
-    return dataUri;
-  }
-
-  return `/uploads/logos/${fileName}`;
+  // and 100% instant display across all devices, browsers, and reloads on ANY IP address without crashing.
+  return dataUri;
 }
 
-// Helper to verify if a logo is a genuine Super Admin upload
+// Helper to verify if a logo is a genuine displayable uploaded logo string
 const isGenuineSuperAdminUpload = (val: string | null | undefined): boolean => {
   if (!val || typeof val !== 'string') return false;
   const t = val.trim();
   if (!t || t === 'null' || t === 'undefined') return false;
-  if (t.includes('medcore-logo.svg') || t.includes('/assets/brand/medcore-logo.svg')) return false;
-  if (t.includes('PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2MDAgNjAwIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIj4KICA8ZGVmcz4KICAgIDwhLS0gQ2xpcCBwYXRoIGZvciB0aGUgNCBxdWFkcmFudHMgaW5zaWRlIHRoZSBzaGllbGQgLS0+')) return false;
   if (t.includes('iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB') || t.includes('AAAAABJRU5ErkJggg==')) return false;
-  return t.startsWith('data:image/') || t.startsWith('/uploads/') || t.startsWith('http://') || t.startsWith('https://');
+  if (t.includes('medcore-logo.svg') || t.includes('/assets/brand/')) return false;
+  return t.startsWith('data:image/') || t.startsWith('/uploads/logos/') || t.startsWith('http://') || t.startsWith('https://') || t.startsWith('blob:');
 };
 
 // Public endpoint to get frontend settings
@@ -195,33 +219,26 @@ router.get('/frontend', async (req, res) => {
     } else {
       const current = settings[0];
       
-      // If disk has a Super Admin uploaded logo, ensure DB has it
-      if (diskSuperAdminLogo && !isGenuineSuperAdminUpload(current.heroLogo)) {
+      // If DB has an invalid/old deleted logo, clean it up to null or disk uploaded logo
+      if (current.heroLogo && !isGenuineSuperAdminUpload(current.heroLogo)) {
+        const activeLogo = diskSuperAdminLogo || null;
         await db.update(frontendSettings).set({
-          heroLogo: diskSuperAdminLogo,
-          registrationLogo: diskSuperAdminLogo,
-          loginLogo: diskSuperAdminLogo,
+          heroLogo: activeLogo,
+          registrationLogo: activeLogo,
+          loginLogo: activeLogo,
           updatedAt: new Date()
         }).where(eq(frontendSettings.id, FRONTEND_SETTINGS_ID));
-        current.heroLogo = diskSuperAdminLogo;
-        current.registrationLogo = diskSuperAdminLogo;
-        current.loginLogo = diskSuperAdminLogo;
-      } else if (!isGenuineSuperAdminUpload(current.heroLogo)) {
-        // Un-uploaded or fake default logo in DB -> wipe it to null so NO logo is displayed!
-        if (current.heroLogo !== null || current.registrationLogo !== null || current.loginLogo !== null) {
-          await db.update(frontendSettings).set({
-            heroLogo: null,
-            registrationLogo: null,
-            loginLogo: null,
-            updatedAt: new Date()
-          }).where(eq(frontendSettings.id, FRONTEND_SETTINGS_ID));
-          current.heroLogo = null;
-          current.registrationLogo = null;
-          current.loginLogo = null;
-        }
+        current.heroLogo = activeLogo;
+        current.registrationLogo = activeLogo;
+        current.loginLogo = activeLogo;
       }
     }
     
+    // Prevent stale caching so any IP address gets the latest branding instantly
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
     res.json(settings[0]);
   } catch (error) {
     console.error('Fetch frontend settings error:', error);
@@ -296,7 +313,7 @@ router.post('/global-logo', upload.single('logo'), async (req: AuthRequest, res)
   }
 });
 
-// Dedicated endpoint to remove the Super Admin uploaded logo
+// Dedicated endpoint to remove the Super Admin uploaded logo totally from the system
 router.delete('/global-logo', authenticateToken, async (req: AuthRequest, res) => {
   try {
     if (req.user?.role !== 'SUPER_ADMIN') {
@@ -312,21 +329,21 @@ router.delete('/global-logo', authenticateToken, async (req: AuthRequest, res) =
 
     await db.update(frontendSettings).set(updates).where(eq(frontendSettings.id, FRONTEND_SETTINGS_ID));
 
-    const metaPath = path.join(process.cwd(), 'public/assets/brand/brand-config.json');
+    const brandDir = path.join(process.cwd(), 'public/assets/brand');
     try {
-      await fs.promises.writeFile(metaPath, JSON.stringify({
-        isSuperAdminUploaded: false,
-        url: null,
-        dataUri: null,
-        updatedAt: new Date().toISOString()
-      }));
+      if (fs.existsSync(brandDir)) {
+        const files = fs.readdirSync(brandDir);
+        for (const file of files) {
+          fs.unlinkSync(path.join(brandDir, file));
+        }
+      }
     } catch (err) {}
 
     const updated = await db.select().from(frontendSettings).where(eq(frontendSettings.id, FRONTEND_SETTINGS_ID)).limit(1);
 
     res.json({
       success: true,
-      message: 'Super Admin logo removed permanently. No logo will be displayed until a new one is uploaded.',
+      message: 'Logo deleted totally from the system. Only uploaded logos (PNG/image) will display.',
       frontendSettings: updated[0]
     });
   } catch (error: any) {
@@ -380,9 +397,9 @@ router.put('/frontend', authenticateToken, upload.fields([
       primaryColor: body.primaryColor !== undefined ? body.primaryColor : current.primaryColor,
       contactEmail: body.contactEmail !== undefined ? body.contactEmail : current.contactEmail,
       contactPhone: body.contactPhone !== undefined ? body.contactPhone : current.contactPhone,
-      heroLogo: body.heroLogo !== undefined ? body.heroLogo : current.heroLogo,
-      registrationLogo: body.registrationLogo !== undefined ? body.registrationLogo : current.registrationLogo,
-      loginLogo: body.loginLogo !== undefined ? body.loginLogo : current.loginLogo,
+      heroLogo: (body.removeLogo === 'true' || body.heroLogo === '') ? null : (isGenuineSuperAdminUpload(body.heroLogo) ? body.heroLogo : current.heroLogo),
+      registrationLogo: (body.removeLogo === 'true' || body.registrationLogo === '') ? null : (isGenuineSuperAdminUpload(body.registrationLogo) ? body.registrationLogo : current.registrationLogo),
+      loginLogo: (body.removeLogo === 'true' || body.loginLogo === '') ? null : (isGenuineSuperAdminUpload(body.loginLogo) ? body.loginLogo : current.loginLogo),
       updatedAt: new Date()
     };
     
@@ -406,6 +423,10 @@ import { DEFAULT_COIN_PACKAGES } from '../utils/studentAccess.js';
 router.get('/', async (req, res) => {
   try {
     let settings = await db.select().from(systemSettings).where(eq(systemSettings.id, SETTINGS_ID)).limit(1);
+    
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     
     if (!settings || settings.length === 0) {
       // Create defaults

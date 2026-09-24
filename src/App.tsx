@@ -90,8 +90,23 @@ export default function App() {
     };
     init();
 
+    // Multi-IP and cross-tab background synchronization:
+    // Periodically re-check settings and sync immediately when user returns to tab
+    const handleSync = () => {
+      if (document.visibilityState === 'visible') {
+        fetchSettings();
+      }
+    };
+
+    window.addEventListener('focus', handleSync);
+    document.addEventListener('visibilitychange', handleSync);
+    const syncInterval = setInterval(handleSync, 20000); // 20-second heartbeat sync
+
     return () => {
       isMounted = false;
+      window.removeEventListener('focus', handleSync);
+      document.removeEventListener('visibilitychange', handleSync);
+      clearInterval(syncInterval);
     };
   }, [checkAuth, fetchSettings]);
 

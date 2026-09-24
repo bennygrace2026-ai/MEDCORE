@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 import { 
   getResolvedBrandLogo, 
-  isSuperAdminUploadedLogo, 
+  isValidBrandLogo, 
   getSuperAdminStaticLogo, 
-  setSuperAdminStaticLogo 
+  setSuperAdminStaticLogo
 } from '../constants/brandAssets';
 
 export interface CoinPackage {
@@ -145,15 +145,15 @@ const enrichFrontendSettings = (data: FrontendSettings | null): FrontendSettings
     loginLogo: undefined,
   };
 
-  const resolvedHero = getResolvedBrandLogo(base.heroLogo);
-  const resolvedReg = getResolvedBrandLogo(base.registrationLogo);
-  const resolvedLogin = getResolvedBrandLogo(base.loginLogo);
+  const resolvedHero = getResolvedBrandLogo(base.heroLogo) || undefined;
+  const resolvedReg = getResolvedBrandLogo(base.registrationLogo) || undefined;
+  const resolvedLogin = getResolvedBrandLogo(base.loginLogo) || undefined;
 
   return {
     ...base,
-    heroLogo: resolvedHero || undefined,
-    registrationLogo: resolvedReg || undefined,
-    loginLogo: resolvedLogin || undefined,
+    heroLogo: resolvedHero,
+    registrationLogo: resolvedReg,
+    loginLogo: resolvedLogin,
   };
 };
 
@@ -164,14 +164,16 @@ const getInitialFrontendSettings = (): FrontendSettings => {
     const stored = localStorage.getItem('medcore_frontend_settings');
     const parsed = stored ? JSON.parse(stored) : {};
     
-    if (staticLogo && isSuperAdminUploadedLogo(staticLogo)) {
+    if (staticLogo && isValidBrandLogo(staticLogo)) {
       parsed.heroLogo = staticLogo;
       parsed.registrationLogo = staticLogo;
       parsed.loginLogo = staticLogo;
+    } else if (parsed.heroLogo && isValidBrandLogo(parsed.heroLogo)) {
+      // keep stored logo
     } else {
-      if (!isSuperAdminUploadedLogo(parsed.heroLogo)) parsed.heroLogo = undefined;
-      if (!isSuperAdminUploadedLogo(parsed.registrationLogo)) parsed.registrationLogo = undefined;
-      if (!isSuperAdminUploadedLogo(parsed.loginLogo)) parsed.loginLogo = undefined;
+      parsed.heroLogo = undefined;
+      parsed.registrationLogo = undefined;
+      parsed.loginLogo = undefined;
     }
     
     return enrichFrontendSettings(parsed);
@@ -191,8 +193,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   fetchSettings: async () => {
     try {
       const [sysRes, frontRes] = await Promise.all([
-        fetch('/api/settings'),
-        fetch('/api/settings/frontend')
+        fetch('/api/settings', { cache: 'no-store' }),
+        fetch('/api/settings/frontend', { cache: 'no-store' })
       ]);
       
       let sysData = null;
@@ -211,19 +213,21 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         const rawFrontData = await frontRes.json();
         frontData = enrichFrontendSettings(rawFrontData);
         
-        // Static persistence check: ensure Super Admin uploaded logo stays even after reload
+        // Static persistence check: ensure genuine uploaded logo is kept in storage
         const staticLogo = getSuperAdminStaticLogo();
-        const serverHasValidLogo = rawFrontData?.heroLogo && isSuperAdminUploadedLogo(rawFrontData.heroLogo);
+        const serverHasValidLogo = rawFrontData?.heroLogo && isValidBrandLogo(rawFrontData.heroLogo);
 
         if (serverHasValidLogo) {
           setSuperAdminStaticLogo(rawFrontData.heroLogo);
-        } else if (staticLogo && isSuperAdminUploadedLogo(staticLogo)) {
+          frontData.heroLogo = rawFrontData.heroLogo;
+          frontData.registrationLogo = rawFrontData.heroLogo;
+          frontData.loginLogo = rawFrontData.heroLogo;
+        } else if (staticLogo && isValidBrandLogo(staticLogo)) {
           // Keep static logo active across refreshes/reloads
           frontData.heroLogo = staticLogo;
           frontData.registrationLogo = staticLogo;
           frontData.loginLogo = staticLogo;
         } else {
-          // No super admin logo uploaded -> do not display any logo
           frontData.heroLogo = undefined;
           frontData.registrationLogo = undefined;
           frontData.loginLogo = undefined;

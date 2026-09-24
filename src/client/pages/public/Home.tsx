@@ -8,17 +8,17 @@ export default function Home() {
   const { settings, frontendSettings } = useSettingsStore();
   const defaultDays = settings?.defaultAccessDays || 7;
   const primaryColor = frontendSettings?.primaryColor || 'purple';
-  const superAdminUploadedLogo = getResolvedBrandLogo(frontendSettings?.heroLogo);
+  const brandLogo = getResolvedBrandLogo(frontendSettings?.heroLogo);
 
   return (
     <div className="flex-grow flex flex-col">
       {/* Hero Section */}
-      <section className="relative bg-white pt-24 pb-32 overflow-hidden border-b border-zinc-100">
-        {/* Background Logo Watermark - Only displayed if Super Admin uploaded a logo */}
-        {superAdminUploadedLogo && (
+      <section className="relative bg-white pt-20 pb-28 sm:pt-24 sm:pb-32 overflow-hidden border-b border-zinc-100">
+        {/* Background Logo Watermark */}
+        {brandLogo && (
           <div className="absolute inset-0 flex items-center justify-center opacity-[0.035] pointer-events-none select-none overflow-hidden z-0">
             <img 
-              src={superAdminUploadedLogo} 
+              src={brandLogo} 
               alt="" 
               className="w-[120%] sm:w-[80%] lg:w-[60%] h-auto object-contain grayscale" 
             />
@@ -32,15 +32,17 @@ export default function Home() {
         </div>
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-          {superAdminUploadedLogo && (
-            <div className="mb-8 flex justify-center">
-              <GlobalBrandLogo 
-                id="hero-centerpiece-logo"
-                imgId="hero-centerpiece-logo-img"
-                className="h-24 w-24 sm:h-28 sm:w-28 rounded-2xl shadow-md p-1 bg-white border border-zinc-100"
-                imageClassName="w-full h-full object-contain"
-                variant="public"
-              />
+          {brandLogo && (
+            <div className="mb-7 flex justify-center">
+              <div className="p-2 sm:p-2.5 bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-zinc-200/80 ring-1 ring-black/5 hover:scale-105 transition-transform duration-300">
+                <GlobalBrandLogo 
+                  id="hero-centerpiece-logo"
+                  imgId="hero-centerpiece-logo-img"
+                  className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl p-1 bg-white"
+                  imageClassName="w-full h-full object-contain"
+                  variant="public"
+                />
+              </div>
             </div>
           )}
           
