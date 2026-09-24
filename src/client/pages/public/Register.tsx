@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Activity, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Activity, AlertCircle, CheckCircle2, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useAuthStore } from '../../store/authStore';
 import GlobalBrandLogo from '../../components/shared/GlobalBrandLogo';
@@ -11,8 +11,8 @@ import GlobalBrandLogo from '../../components/shared/GlobalBrandLogo';
 const registerSchema = z.object({
   name: z.string().min(2, 'Name is required'),
   email: z.string().email('Valid email is required'),
-  phone: z.string().min(10, 'Phone number is required'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  phone: z.string().min(7, 'Valid phone number is required'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
   country: z.string().min(1, 'Country is required'),
   state: z.string().min(1, 'State is required'),
   institution: z.string().min(2, 'Institution is required'),
@@ -26,6 +26,7 @@ export default function Register() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [studentId, setStudentId] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const setAuth = useAuthStore((state) => state.setAuth);
@@ -40,12 +41,19 @@ export default function Register() {
       setIsLoading(true);
       setError('');
       
+      const payload = {
+        ...data,
+        email: data.email.trim().toLowerCase(),
+        name: data.name.trim(),
+        phone: data.phone.trim(),
+      };
+
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
 
       let result: any = null;
@@ -211,12 +219,27 @@ export default function Register() {
 
               <div>
                 <label className="block text-sm font-medium text-zinc-700 mb-1">Password</label>
-                <input
-                  type="password"
-                  autoComplete="new-password"
-                  className={`appearance-none block w-full px-3 py-2 border ${errors.password ? 'border-red-300 focus:ring-red-500' : 'border-zinc-300 focus:ring-zinc-900'} rounded-lg shadow-sm sm:text-sm`}
-                  {...register('password')}
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    className={`appearance-none block w-full px-3 py-2 pr-10 border ${errors.password ? 'border-red-300 focus:ring-red-500' : 'border-zinc-300 focus:ring-zinc-900'} rounded-lg shadow-sm sm:text-sm`}
+                    {...register('password')}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-400 hover:text-zinc-700 focus:outline-none cursor-pointer"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    tabIndex={-1}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
                 {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>}
               </div>
 

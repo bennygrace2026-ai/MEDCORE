@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { ShieldAlert, AlertCircle, ArrowLeft } from 'lucide-react';
+import { ShieldAlert, AlertCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -18,6 +18,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function SuperAdminLogin() {
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -42,14 +43,9 @@ export default function SuperAdminLogin() {
       msg.includes('<html>') ||
       msg.includes('<hea') ||
       msg.includes('<!DOCTYPE') ||
-      msg.includes('<!doctype') ||
-      msg.toLowerCase().includes('unregistered email') ||
-      msg.toLowerCase().includes('user not found') ||
-      msg.toLowerCase().includes('access denied: this email address is restricted') ||
-      msg.toLowerCase().includes('internal server error') ||
-      msg.toLowerCase().includes('failed to fetch')
+      msg.includes('<!doctype')
     ) {
-      return 'EMAIL NOT REGISTERED';
+      return 'Authentication service temporarily busy. Please try again.';
     }
     return msg;
   };
@@ -64,7 +60,11 @@ export default function SuperAdminLogin() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ ...data, expectedRole: 'SUPER_ADMIN' }),
+        body: JSON.stringify({
+          email: data.email.trim().toLowerCase(),
+          password: data.password,
+          expectedRole: 'SUPER_ADMIN',
+        }),
       });
 
       let result: any = null;
@@ -76,7 +76,7 @@ export default function SuperAdminLogin() {
       }
 
       if (!response.ok) {
-        throw new Error(result?.error || 'EMAIL NOT REGISTERED');
+        throw new Error(result?.error || 'Failed to sign in. Please verify your credentials.');
       }
 
       if (result.user.role !== 'SUPER_ADMIN') {
@@ -168,12 +168,25 @@ export default function SuperAdminLogin() {
               <div className="relative group">
                 <input
                   id="password"
-                  type="password"
-                  autoComplete="new-password"
-                  className={`appearance-none block w-full px-4 py-3 bg-black/40 border ${errors.password ? 'border-red-500/50 focus:ring-red-500/50' : 'border-zinc-800/80 focus:ring-purple-500/50 focus:border-purple-500/50'} rounded-xl text-white placeholder-zinc-700 focus:outline-none sm:text-sm font-mono transition-all duration-300 group-hover:border-zinc-700`}
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  className={`appearance-none block w-full px-4 py-3 pr-11 bg-black/40 border ${errors.password ? 'border-red-500/50 focus:ring-red-500/50' : 'border-zinc-800/80 focus:ring-purple-500/50 focus:border-purple-500/50'} rounded-xl text-white placeholder-zinc-700 focus:outline-none sm:text-sm font-mono transition-all duration-300 group-hover:border-zinc-700`}
                   placeholder="••••••••"
                   {...register('password')}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-zinc-500 hover:text-purple-400 focus:outline-none cursor-pointer z-10"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
                 <div className="absolute inset-0 rounded-xl bg-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
               </div>
               {errors.password && (

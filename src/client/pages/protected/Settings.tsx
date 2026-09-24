@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../store/authStore';
-import { User, Lock, Upload, AlertTriangle, Phone, Globe, Building, Mail, MapPin } from 'lucide-react';
+import { User, Lock, Upload, AlertTriangle, Phone, Globe, Building, Mail, MapPin, Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Settings() {
@@ -24,6 +24,8 @@ export default function Settings() {
   // Password states
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   
   const [isUpdating, setIsUpdating] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -344,12 +346,25 @@ export default function Settings() {
                     <Lock className="h-4 w-4 text-zinc-400" />
                   </div>
                   <input
-                    type="password"
+                    type={showCurrentPassword ? 'text' : 'password'}
                     required
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="block w-full pl-10 pr-4 py-2.5 bg-zinc-50 border border-zinc-300 rounded-xl text-sm focus:bg-white focus:border-zinc-900 outline-none transition-all text-zinc-800"
+                    className="block w-full pl-10 pr-10 py-2.5 bg-zinc-50 border border-zinc-300 rounded-xl text-sm focus:bg-white focus:border-zinc-900 outline-none transition-all text-zinc-800"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-zinc-400 hover:text-zinc-600 focus:outline-none cursor-pointer"
+                    aria-label={showCurrentPassword ? 'Hide password' : 'Show password'}
+                    tabIndex={-1}
+                  >
+                    {showCurrentPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
                 </div>
               </div>
 
@@ -360,13 +375,26 @@ export default function Settings() {
                     <Lock className="h-4 w-4 text-zinc-400" />
                   </div>
                   <input
-                    type="password"
+                    type={showNewPassword ? 'text' : 'password'}
                     required
-                    minLength={8}
+                    minLength={6}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="block w-full pl-10 pr-4 py-2.5 bg-zinc-50 border border-zinc-300 rounded-xl text-sm focus:bg-white focus:border-zinc-900 outline-none transition-all text-zinc-800"
+                    className="block w-full pl-10 pr-10 py-2.5 bg-zinc-50 border border-zinc-300 rounded-xl text-sm focus:bg-white focus:border-zinc-900 outline-none transition-all text-zinc-800"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-zinc-400 hover:text-zinc-600 focus:outline-none cursor-pointer"
+                    aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                    tabIndex={-1}
+                  >
+                    {showNewPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
                 </div>
               </div>
 

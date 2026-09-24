@@ -11,18 +11,27 @@ const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-for-development-only-2026';
 
 const generateStudentId = async (): Promise<string> => {
-  // Simple ID generation for now: MCA-2026-XXXXX
-  const allStudents = await db.select().from(students);
-  const count = allStudents.length + 1;
-  const paddedCount = count.toString().padStart(5, '0');
-  return `MCA-2026-${paddedCount}`;
+  try {
+    const allStudents = await db.select().from(students);
+    const count = (allStudents?.length || 0) + 1;
+    const paddedCount = count.toString().padStart(5, '0');
+    const prospectiveId = `MCA-2026-${paddedCount}`;
+    const exists = allStudents?.some((s: any) => s.id === prospectiveId);
+    if (!exists) return prospectiveId;
+  } catch (err) {
+    console.warn('generateStudentId count query warning:', err);
+  }
+  return `MCA-2026-${Math.floor(10000 + Math.random() * 90000)}`;
 };
 
 router.post('/register', async (req, res) => {
   try {
     const { name, email, phone, password, country, state, institution, department, level } = req.body;
 
-    if (!name || !email || !password) {
+    const cleanEmail = email ? String(email).trim().toLowerCase() : '';
+    const cleanName = name ? String(name).trim() : '';
+
+    if (!cleanName || !cleanEmail || !password) {
       res.status(400).json({ error: 'Name, email, and password are required' });
       return;
     }
@@ -38,10 +47,16 @@ router.post('/register', async (req, res) => {
       console.warn('Could not check allowRegistrations setting:', err);
     }
 
-    // Check if user exists
-    const existingUser = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    // Check if user exists (case-insensitive check)
+    const existingUser = await db.select().from(users).where(
+      or(
+        eq(users.email, cleanEmail),
+        eq(users.secondaryEmail, cleanEmail)
+      )
+    ).limit(1);
+
     if (existingUser.length > 0) {
-      res.status(400).json({ error: 'Email already in use. Please sign in or use a different email.' });
+      res.status(400).json({ error: 'Email already registered. Please sign in or use a different email.' });
       return;
     }
 
@@ -54,13 +69,14 @@ router.post('/register', async (req, res) => {
     // Create user
     await db.insert(users).values({
       id: userId,
-      email,
+      email: cleanEmail,
       password: hashedPassword,
-      name,
-      phone,
-      country,
-      state,
+      name: cleanName,
+      phone: phone ? String(phone).trim() : '',
+      country: country ? String(country).trim() : '',
+      state: state ? String(state).trim() : '',
       role: 'STUDENT',
+      status: 'ACTIVE',
       createdAt: new Date(),
     });
 
@@ -85,27 +101,28 @@ router.post('/register', async (req, res) => {
     await db.insert(students).values({
       id: studentId,
       userId: userId,
-      institution,
-      department,
-      level,
+      institution: institution ? String(institution).trim() : 'Medcore Academy',
+      department: department ? String(department).trim() : 'Medicine & Surgery',
+      level: level ? String(level).trim() : '100 Level',
       coins: 0,
       accessDaysRemaining: defaultDays,
       accessExpiryDate: expiryDate,
       streak: 0,
-      isApproved: false,
+      isApproved: true,
+      status: 'ACTIVE'
     });
 
     const studentRecord = await syncAndFormatStudent({
       id: studentId,
       userId: userId,
-      institution,
-      department,
-      level,
+      institution: institution ? String(institution).trim() : 'Medcore Academy',
+      department: department ? String(department).trim() : 'Medicine & Surgery',
+      level: level ? String(level).trim() : '100 Level',
       coins: 0,
       accessDaysRemaining: defaultDays,
       accessExpiryDate: expiryDate,
       streak: 0,
-      isApproved: false,
+      isApproved: true,
       status: 'ACTIVE'
     });
 
@@ -123,11 +140,11 @@ router.post('/register', async (req, res) => {
       token,
       user: {
         id: userId,
-        name,
-        email,
-        phone,
-        country,
-        state,
+        name: cleanName,
+        email: cleanEmail,
+        phone: phone ? String(phone).trim() : '',
+        country: country ? String(country).trim() : '',
+        state: state ? String(state).trim() : '',
         role: 'STUDENT',
         status: 'ACTIVE',
         studentId
@@ -148,14 +165,23 @@ router.post('/login', async (req, res) => {
       return;
     }
 
+    const cleanEmail = String(email).trim().toLowerCase();
+
     let user = await db.select().from(users).where(
       or(
-        eq(users.email, email.trim().toLowerCase()),
-        eq(users.secondaryEmail, email.trim().toLowerCase()),
-        eq(users.email, email.trim()),
-        eq(users.secondaryEmail, email.trim())
+        eq(users.email, cleanEmail),
+        eq(users.secondaryEmail, cleanEmail)
       )
     ).limit(1);
+
+    if (user.length === 0) {
+      user = await db.select().from(users).where(
+        or(
+          eq(users.email, String(email).trim()),
+          eq(users.secondaryEmail, String(email).trim())
+        )
+      ).limit(1);
+    }
 
     if (user.length === 0) {
       res.status(401).json({ error: 'EMAIL NOT REGISTERED' });
@@ -179,17 +205,18 @@ router.post('/login', async (req, res) => {
       return;
     }
 
-    // Strict role separation
-    if (expectedRole && user[0].role !== expectedRole) {
+    // Role verification for dedicated admin portals:
+    if (expectedRole === 'SUPER_ADMIN' && user[0].role !== 'SUPER_ADMIN') {
       if (user[0].role === 'ADMIN') {
         res.status(403).json({ error: 'This account is an Administrator. Please use the Admin Login portal at /admin/login.' });
         return;
       }
-      if (user[0].role === 'SUPER_ADMIN') {
-        res.status(403).json({ error: 'This account is a Super Administrator. Please use the Super Admin Login portal at /super-admin/login.' });
-        return;
-      }
-      res.status(403).json({ error: `Access Denied: This login portal is strictly for ${expectedRole} accounts.` });
+      res.status(403).json({ error: 'Access Denied: Super Admin portal requires Super Administrator credentials.' });
+      return;
+    }
+
+    if (expectedRole === 'ADMIN' && user[0].role !== 'ADMIN' && user[0].role !== 'SUPER_ADMIN') {
+      res.status(403).json({ error: 'Access Denied: Administrator account required. Students please sign in at the Student portal.' });
       return;
     }
 

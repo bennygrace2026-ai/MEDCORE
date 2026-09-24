@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { ShieldCheck, AlertCircle, ArrowLeft } from 'lucide-react';
+import { ShieldCheck, AlertCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import GlobalBrandLogo from '../../components/shared/GlobalBrandLogo';
@@ -17,6 +17,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function AdminLogin() {
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -39,14 +40,9 @@ export default function AdminLogin() {
       msg.includes('<html>') ||
       msg.includes('<hea') ||
       msg.includes('<!DOCTYPE') ||
-      msg.includes('<!doctype') ||
-      msg.toLowerCase().includes('unregistered email') ||
-      msg.toLowerCase().includes('user not found') ||
-      msg.toLowerCase().includes('access denied: this email address is restricted') ||
-      msg.toLowerCase().includes('internal server error') ||
-      msg.toLowerCase().includes('failed to fetch')
+      msg.includes('<!doctype')
     ) {
-      return 'EMAIL NOT REGISTERED';
+      return 'Authentication service temporarily busy. Please try again.';
     }
     return msg;
   };
@@ -61,7 +57,11 @@ export default function AdminLogin() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ ...data, expectedRole: 'ADMIN' }),
+        body: JSON.stringify({
+          email: data.email.trim().toLowerCase(),
+          password: data.password,
+          expectedRole: 'ADMIN',
+        }),
       });
 
       let result: any = null;
@@ -73,16 +73,20 @@ export default function AdminLogin() {
       }
 
       if (!response.ok) {
-        throw new Error(result?.error || 'EMAIL NOT REGISTERED');
+        throw new Error(result?.error || 'Failed to sign in. Please verify your credentials.');
       }
 
-      if (result.user.role !== 'ADMIN') {
+      if (result.user.role !== 'ADMIN' && result.user.role !== 'SUPER_ADMIN') {
         throw new Error('Unauthorized: Admin access strictly required');
       }
 
       setAuth(result.token, result.user, result.studentData);
       
-      navigate(from, { replace: true });
+      if (result.user.role === 'SUPER_ADMIN') {
+        navigate(from === '/admin' ? '/super-admin' : from, { replace: true });
+      } else {
+        navigate(from, { replace: true });
+      }
     } catch (err: any) {
       setError(formatAuthError(err));
     } finally {
@@ -145,13 +149,28 @@ export default function AdminLogin() {
               <label className="block text-sm font-medium text-zinc-300 mb-1" htmlFor="password">
                 Password
               </label>
-              <input
-                id="password"
-                type="password"
-                autoComplete="new-password"
-                className={`appearance-none block w-full px-4 py-3 bg-zinc-900 border ${errors.password ? 'border-red-500 focus:ring-red-500' : 'border-zinc-700 focus:ring-blue-500 focus:border-blue-500'} rounded-xl text-white placeholder-zinc-500 focus:outline-none sm:text-sm transition-colors`}
-                {...register('password')}
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  className={`appearance-none block w-full px-4 py-3 pr-11 bg-zinc-900 border ${errors.password ? 'border-red-500 focus:ring-red-500' : 'border-zinc-700 focus:ring-blue-500 focus:border-blue-500'} rounded-xl text-white placeholder-zinc-500 focus:outline-none sm:text-sm transition-colors`}
+                  {...register('password')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-zinc-400 hover:text-white focus:outline-none cursor-pointer"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
               {errors.password && (
                 <p className="mt-1 text-sm text-red-500">{errors.password.message}</p>
               )}

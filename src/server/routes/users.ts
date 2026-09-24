@@ -224,20 +224,25 @@ router.post('/admins', authenticateToken, async (req: AuthRequest, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // Create admin user
-    const [newUser] = await db.insert(users).values({
-      id: uuidv4(),
-      name,
-      email,
+    const adminId = uuidv4();
+    const cleanEmail = email.trim().toLowerCase();
+    await db.insert(users).values({
+      id: adminId,
+      name: name.trim(),
+      email: cleanEmail,
       phone: phone || '',
       password: hashedPassword,
       role: 'ADMIN',
+      status: 'ACTIVE',
       createdAt: new Date(),
-    }).returning({
-      id: users.id,
-      name: users.name,
-      email: users.email,
-      role: users.role
     });
+
+    const newUser = {
+      id: adminId,
+      name: name.trim(),
+      email: cleanEmail,
+      role: 'ADMIN'
+    };
 
     res.status(201).json(newUser);
   } catch (error) {

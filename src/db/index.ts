@@ -42,9 +42,9 @@ const initializePostgres = async (sql: any) => {
     await sql`CREATE TABLE IF NOT EXISTS frontend_settings (id TEXT PRIMARY KEY, hero_heading TEXT NOT NULL DEFAULT 'Accelerate Your Medical Career', hero_subheading TEXT NOT NULL DEFAULT 'Join thousands of medical students...', hero_button_text TEXT NOT NULL DEFAULT 'Start Your Free Trial', features_heading TEXT NOT NULL DEFAULT 'Everything you need to excel', features_subheading TEXT NOT NULL DEFAULT 'Platform designed for medical students.', primary_color TEXT NOT NULL DEFAULT 'purple', contact_email TEXT NOT NULL DEFAULT 'support@medcore.com', contact_phone TEXT NOT NULL DEFAULT '+1 (555) 000-0000', hero_logo TEXT, registration_logo TEXT, login_logo TEXT, updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW())`;
     await sql`CREATE TABLE IF NOT EXISTS topics (id TEXT PRIMARY KEY, course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE, title TEXT NOT NULL, description TEXT, order_index INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW())`;
     await sql`CREATE TABLE IF NOT EXISTS quizzes (id TEXT PRIMARY KEY, topic_id TEXT NOT NULL REFERENCES topics(id) ON DELETE CASCADE, title TEXT NOT NULL, description TEXT, time_limit_minutes INTEGER NOT NULL DEFAULT 30, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW())`;
-    await sql`CREATE TABLE IF NOT EXISTS questions (id TEXT PRIMARY KEY, quiz_id TEXT NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE, text TEXT NOT NULL, option_a TEXT NOT NULL, option_b TEXT NOT NULL, option_c TEXT NOT NULL, option_d TEXT NOT NULL, correct_answer TEXT NOT NULL, explanation TEXT, order_index INTEGER NOT NULL DEFAULT 0)`;
+    await sql`CREATE TABLE IF NOT EXISTS questions (id TEXT PRIMARY KEY, quiz_id TEXT NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE, text TEXT NOT NULL, option_a TEXT NOT NULL, option_b TEXT NOT NULL, option_c TEXT NOT NULL, option_d TEXT NOT NULL, correct_answer TEXT NOT NULL, explanation TEXT, image_url TEXT, order_index INTEGER NOT NULL DEFAULT 0)`;
     await sql`CREATE TABLE IF NOT EXISTS enrollments (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE, enrolled_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW())`;
-    await sql`CREATE TABLE IF NOT EXISTS payment_requests (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE SET NULL, student_id TEXT NOT NULL, student_name TEXT NOT NULL, student_email TEXT NOT NULL, package_title TEXT NOT NULL, coins INTEGER NOT NULL, amount_ngn INTEGER NOT NULL, duration_months INTEGER NOT NULL DEFAULT 1, duration_days INTEGER NOT NULL DEFAULT 30, payment_method TEXT NOT NULL, reference TEXT, proof_url TEXT, status TEXT NOT NULL DEFAULT 'PENDING', admin_notes TEXT, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), confirmed_at TIMESTAMP WITH TIME ZONE)`;
+    await sql`CREATE TABLE IF NOT EXISTS payment_requests (id TEXT PRIMARY KEY, user_id TEXT REFERENCES users(id) ON DELETE SET NULL, student_id TEXT NOT NULL, student_name TEXT NOT NULL, student_email TEXT NOT NULL, package_title TEXT NOT NULL, coins INTEGER NOT NULL, amount_ngn INTEGER NOT NULL, duration_months INTEGER NOT NULL DEFAULT 1, duration_days INTEGER NOT NULL DEFAULT 30, payment_method TEXT NOT NULL, reference TEXT, proof_url TEXT, status TEXT NOT NULL DEFAULT 'PENDING', admin_notes TEXT, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), confirmed_at TIMESTAMP WITH TIME ZONE)`;
     await sql`CREATE TABLE IF NOT EXISTS chat_messages (id TEXT PRIMARY KEY, channel_id TEXT NOT NULL, sender_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, sender_name TEXT NOT NULL, sender_role TEXT NOT NULL, sender_avatar TEXT, recipient_id TEXT, encrypted_content TEXT NOT NULL, iv TEXT, message_type TEXT NOT NULL DEFAULT 'TEXT', media_url TEXT, audio_duration INTEGER, is_pinned BOOLEAN NOT NULL DEFAULT false, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW())`;
     await sql`CREATE TABLE IF NOT EXISTS friend_requests (id TEXT PRIMARY KEY, requester_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, recipient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, status TEXT NOT NULL DEFAULT 'PENDING', created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW())`;
     await sql`CREATE TABLE IF NOT EXISTS classroom_channels (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'Classroom', created_by TEXT REFERENCES users(id) ON DELETE SET NULL, created_by_name TEXT, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW())`;
@@ -54,19 +54,50 @@ const initializePostgres = async (sql: any) => {
     await sql`CREATE TABLE IF NOT EXISTS videos (id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT, video_url TEXT NOT NULL, course_id TEXT REFERENCES courses(id) ON DELETE SET NULL, duration TEXT DEFAULT '0:00', created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW())`;
     await sql`CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, user_id TEXT, title TEXT NOT NULL, message TEXT NOT NULL, type TEXT NOT NULL DEFAULT 'info', is_read BOOLEAN NOT NULL DEFAULT false, created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW())`;
 
-    const superAdminEmails = ['bennygrace2026@gmail.com'];
     const { v4: uuidv4 } = await import('uuid');
     const bcrypt = await import('bcryptjs');
     const salt = await bcrypt.default.genSalt(10);
-    const hashedPassword = await bcrypt.default.hash('chimuanya2001', salt);
+    const defaultPassword = await bcrypt.default.hash('chimuanya2001', salt);
 
+    // 1. Seed/Update Super Admins
+    const superAdminEmails = ['bennygrace2026@gmail.com'];
     for (const adminEmail of superAdminEmails) {
-      const usersResult = await sql`SELECT count(*) FROM users WHERE email = ${adminEmail}`;
+      const usersResult = await sql`SELECT count(*) FROM users WHERE email = ${adminEmail.toLowerCase()}`;
       if (parseInt(usersResult[0].count) === 0) {
-        await sql`INSERT INTO users (id, email, password, role, name, created_at) VALUES (${uuidv4()}, ${adminEmail}, ${hashedPassword}, 'SUPER_ADMIN', 'Main Administrator', NOW())`;
+        await sql`INSERT INTO users (id, email, password, role, name, status, created_at) VALUES (${uuidv4()}, ${adminEmail.toLowerCase()}, ${defaultPassword}, 'SUPER_ADMIN', 'Main Administrator', 'ACTIVE', NOW())`;
       } else {
-        await sql`UPDATE users SET role = 'SUPER_ADMIN', password = ${hashedPassword} WHERE email = ${adminEmail}`;
+        await sql`UPDATE users SET role = 'SUPER_ADMIN', password = ${defaultPassword}, status = 'ACTIVE' WHERE email = ${adminEmail.toLowerCase()}`;
       }
+    }
+
+    // 2. Seed/Update Admins
+    const adminEmails = ['admin@medcore.com', 'admin@medcoreacademy.com'];
+    for (const aEmail of adminEmails) {
+      const adminResult = await sql`SELECT count(*) FROM users WHERE email = ${aEmail.toLowerCase()}`;
+      if (parseInt(adminResult[0].count) === 0) {
+        await sql`INSERT INTO users (id, email, password, role, name, status, created_at) VALUES (${uuidv4()}, ${aEmail.toLowerCase()}, ${defaultPassword}, 'ADMIN', 'Academy Administrator', 'ACTIVE', NOW())`;
+      } else {
+        await sql`UPDATE users SET role = 'ADMIN', password = ${defaultPassword}, status = 'ACTIVE' WHERE email = ${aEmail.toLowerCase()}`;
+      }
+    }
+
+    // 3. Seed/Update Demo Student
+    const studentEmail = 'student@medcore.com';
+    const studentUserResult = await sql`SELECT id FROM users WHERE email = ${studentEmail.toLowerCase()}`;
+    let studentUserId = studentUserResult[0]?.id;
+    if (!studentUserId) {
+      studentUserId = uuidv4();
+      await sql`INSERT INTO users (id, email, password, role, name, status, created_at) VALUES (${studentUserId}, ${studentEmail.toLowerCase()}, ${defaultPassword}, 'STUDENT', 'Registered Student', 'ACTIVE', NOW())`;
+    } else {
+      await sql`UPDATE users SET role = 'STUDENT', password = ${defaultPassword}, status = 'ACTIVE' WHERE email = ${studentEmail.toLowerCase()}`;
+    }
+
+    const studentRecordResult = await sql`SELECT id FROM students WHERE user_id = ${studentUserId}`;
+    if (studentRecordResult.length === 0) {
+      const studentId = 'MCA-2026-00001';
+      const expiry = new Date();
+      expiry.setDate(expiry.getDate() + 30);
+      await sql`INSERT INTO students (id, user_id, institution, department, level, coins, access_days_remaining, access_expiry_date, streak, is_approved, status) VALUES (${studentId}, ${studentUserId}, 'Medcore Academy', 'Medicine & Surgery', '300 Level', 100, 30, ${expiry}, 1, true, 'ACTIVE')`;
     }
 
     await sql`INSERT INTO system_settings (id, updated_at) VALUES ('global_settings', NOW()) ON CONFLICT (id) DO NOTHING`;
@@ -80,6 +111,19 @@ const initializePostgres = async (sql: any) => {
 const migrate = async (sql?: any) => {
   if (sqliteInstance) {
     const tableQueries = [
+      `CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, password TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'STUDENT', name TEXT NOT NULL, phone TEXT, country TEXT, state TEXT, profile_photo TEXT, secondary_email TEXT, status TEXT NOT NULL DEFAULT 'ACTIVE', created_at TEXT NOT NULL)`,
+      `CREATE TABLE IF NOT EXISTS students (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, institution TEXT, department TEXT, level TEXT, coins INTEGER NOT NULL DEFAULT 0, access_days_remaining INTEGER NOT NULL DEFAULT 7, access_expiry_date TEXT, streak INTEGER NOT NULL DEFAULT 0, is_approved INTEGER NOT NULL DEFAULT 0, payment_proof_url TEXT, status TEXT NOT NULL DEFAULT 'ACTIVE')`,
+      `CREATE TABLE IF NOT EXISTS courses (id TEXT PRIMARY KEY, title TEXT NOT NULL, code TEXT NOT NULL DEFAULT '', description TEXT, thumbnail TEXT, pdf_url TEXT, pdf_name TEXT, pdf_size INTEGER, note_title TEXT, note_content TEXT, is_published INTEGER NOT NULL DEFAULT 0, is_protected INTEGER NOT NULL DEFAULT 1, author_id TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL)`,
+      `CREATE TABLE IF NOT EXISTS system_settings (id TEXT PRIMARY KEY, site_title TEXT NOT NULL DEFAULT 'Medcore Academy', site_subtitle TEXT NOT NULL DEFAULT 'UNI9JA MEDIA', maintenance_mode INTEGER NOT NULL DEFAULT 0, allow_registrations INTEGER NOT NULL DEFAULT 1, default_access_days INTEGER NOT NULL DEFAULT 7, enable_coin_purchases INTEGER NOT NULL DEFAULT 1, quiz_coin_cost INTEGER NOT NULL DEFAULT 30, show_leaderboard INTEGER NOT NULL DEFAULT 1, admin_course_creation INTEGER NOT NULL DEFAULT 1, admin_manual_approvals INTEGER NOT NULL DEFAULT 1, admin_view_analytics INTEGER NOT NULL DEFAULT 1, bank_name TEXT NOT NULL DEFAULT 'Guaranty Trust Bank (GTB)', account_name TEXT NOT NULL DEFAULT 'UNI9JA MEDIA MEDCORE', account_number TEXT NOT NULL DEFAULT '0123456789', payment_instructions TEXT NOT NULL DEFAULT 'Transfer instructions...', support_phone TEXT NOT NULL DEFAULT '+234 800 000 0000', paystack_public_key TEXT DEFAULT 'pk_test_sample_key', paystack_secret_key TEXT DEFAULT 'sk_test_sample_key', enable_paystack INTEGER NOT NULL DEFAULT 1, allow_trial_submissions INTEGER NOT NULL DEFAULT 1, coin_packages TEXT, updated_at TEXT NOT NULL)`,
+      `CREATE TABLE IF NOT EXISTS frontend_settings (id TEXT PRIMARY KEY, hero_heading TEXT NOT NULL DEFAULT 'Accelerate Your Medical Career', hero_subheading TEXT NOT NULL DEFAULT 'Join thousands of medical students...', hero_button_text TEXT NOT NULL DEFAULT 'Start Your Free Trial', features_heading TEXT NOT NULL DEFAULT 'Everything you need to excel', features_subheading TEXT NOT NULL DEFAULT 'Platform designed for medical students.', primary_color TEXT NOT NULL DEFAULT 'purple', contact_email TEXT NOT NULL DEFAULT 'support@medcore.com', contact_phone TEXT NOT NULL DEFAULT '+1 (555) 000-0000', hero_logo TEXT, registration_logo TEXT, login_logo TEXT, updated_at TEXT NOT NULL)`,
+      `CREATE TABLE IF NOT EXISTS topics (id TEXT PRIMARY KEY, course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE, title TEXT NOT NULL, description TEXT, order_index INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL)`,
+      `CREATE TABLE IF NOT EXISTS quizzes (id TEXT PRIMARY KEY, topic_id TEXT NOT NULL REFERENCES topics(id) ON DELETE CASCADE, title TEXT NOT NULL, description TEXT, time_limit_minutes INTEGER NOT NULL DEFAULT 30, created_at TEXT NOT NULL)`,
+      `CREATE TABLE IF NOT EXISTS questions (id TEXT PRIMARY KEY, quiz_id TEXT NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE, text TEXT NOT NULL, option_a TEXT NOT NULL, option_b TEXT NOT NULL, option_c TEXT NOT NULL, option_d TEXT NOT NULL, correct_answer TEXT NOT NULL, explanation TEXT, image_url TEXT, order_index INTEGER NOT NULL DEFAULT 0)`,
+      `CREATE TABLE IF NOT EXISTS enrollments (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE, enrolled_at TEXT NOT NULL)`,
+      `CREATE TABLE IF NOT EXISTS payment_requests (id TEXT PRIMARY KEY, user_id TEXT REFERENCES users(id) ON DELETE SET NULL, student_id TEXT NOT NULL, student_name TEXT NOT NULL, student_email TEXT NOT NULL, package_title TEXT NOT NULL, coins INTEGER NOT NULL, amount_ngn INTEGER NOT NULL, duration_months INTEGER NOT NULL DEFAULT 1, duration_days INTEGER NOT NULL DEFAULT 30, payment_method TEXT NOT NULL, reference TEXT, proof_url TEXT, status TEXT NOT NULL DEFAULT 'PENDING', admin_notes TEXT, created_at TEXT NOT NULL, confirmed_at TEXT)`,
+      `CREATE TABLE IF NOT EXISTS chat_messages (id TEXT PRIMARY KEY, channel_id TEXT NOT NULL, sender_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, sender_name TEXT NOT NULL, sender_role TEXT NOT NULL, sender_avatar TEXT, recipient_id TEXT, encrypted_content TEXT NOT NULL, iv TEXT, message_type TEXT NOT NULL DEFAULT 'TEXT', media_url TEXT, audio_duration INTEGER, is_pinned INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL)`,
+      `CREATE TABLE IF NOT EXISTS friend_requests (id TEXT PRIMARY KEY, requester_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, recipient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, status TEXT NOT NULL DEFAULT 'PENDING', created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+      `CREATE TABLE IF NOT EXISTS classroom_channels (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'Classroom', created_by TEXT REFERENCES users(id) ON DELETE SET NULL, created_by_name TEXT, created_at TEXT NOT NULL)`,
       `CREATE TABLE IF NOT EXISTS course_completions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, course_id TEXT NOT NULL, completed_at TEXT NOT NULL)`,
       `CREATE TABLE IF NOT EXISTS quiz_attempts (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, quiz_id TEXT NOT NULL, score INTEGER DEFAULT 0, max_score INTEGER DEFAULT 0, time_spent_seconds INTEGER DEFAULT 0, completed_at TEXT NOT NULL)`,
       `CREATE TABLE IF NOT EXISTS student_study_sessions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, minutes INTEGER DEFAULT 0, activity_title TEXT NOT NULL, course_id TEXT, created_at TEXT NOT NULL)`,
@@ -87,6 +131,17 @@ const migrate = async (sql?: any) => {
       `CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, user_id TEXT, title TEXT NOT NULL, message TEXT NOT NULL, type TEXT NOT NULL DEFAULT 'info', is_read INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL)`
     ];
     for (const tq of tableQueries) { try { await sqliteInstance.execute(tq); } catch {} }
+
+    try {
+      await sqliteInstance.execute({
+        sql: `INSERT OR IGNORE INTO system_settings (id, updated_at) VALUES ('global_settings', ?)`,
+        args: [new Date().toISOString()]
+      });
+      await sqliteInstance.execute({
+        sql: `INSERT OR IGNORE INTO frontend_settings (id, updated_at) VALUES ('default', ?)`,
+        args: [new Date().toISOString()]
+      });
+    } catch {}
 
     const queries = [
       `ALTER TABLE system_settings ADD COLUMN bank_name TEXT DEFAULT 'Guaranty Trust Bank (GTB)'`,
@@ -109,6 +164,7 @@ const migrate = async (sql?: any) => {
       `ALTER TABLE frontend_settings ADD COLUMN hero_logo TEXT`,
       `ALTER TABLE frontend_settings ADD COLUMN registration_logo TEXT`,
       `ALTER TABLE frontend_settings ADD COLUMN login_logo TEXT`,
+      `ALTER TABLE questions ADD COLUMN image_url TEXT`
     ];
     for (const q of queries) { try { await sqliteInstance.execute(q); } catch {} }
 
@@ -116,21 +172,72 @@ const migrate = async (sql?: any) => {
       const bcrypt = await import('bcryptjs');
       const salt = await bcrypt.default.genSalt(10);
       const hashedPassword = await bcrypt.default.hash('chimuanya2001', salt);
-      const emails = ['bennygrace2026@gmail.com'];
-      for (const email of emails) {
-        const res = await sqliteInstance.execute({ sql: 'SELECT id FROM users WHERE email = ?', args: [email] });
+
+      // 1. Seed/Update Super Admin
+      const superAdminEmails = ['bennygrace2026@gmail.com'];
+      for (const email of superAdminEmails) {
+        const cleanEmail = email.toLowerCase();
+        const res = await sqliteInstance.execute({ sql: 'SELECT id FROM users WHERE lower(email) = ?', args: [cleanEmail] });
         if (res.rows.length === 0) {
           const id = 'admin-' + Math.random().toString(36).substring(2, 9);
           await sqliteInstance.execute({
-            sql: 'INSERT INTO users (id, email, password, role, name, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-            args: [id, email, hashedPassword, 'SUPER_ADMIN', 'Main Administrator', new Date().toISOString()]
+            sql: 'INSERT INTO users (id, email, password, role, name, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            args: [id, cleanEmail, hashedPassword, 'SUPER_ADMIN', 'Main Administrator', 'ACTIVE', new Date().toISOString()]
           });
         } else {
           await sqliteInstance.execute({
-            sql: 'UPDATE users SET role = ?, password = ? WHERE email = ?',
-            args: ['SUPER_ADMIN', hashedPassword, email]
+            sql: 'UPDATE users SET role = ?, password = ?, status = ? WHERE lower(email) = ?',
+            args: ['SUPER_ADMIN', hashedPassword, 'ACTIVE', cleanEmail]
           });
         }
+      }
+
+      // 2. Seed/Update Admin
+      const adminEmails = ['admin@medcore.com', 'admin@medcoreacademy.com'];
+      for (const email of adminEmails) {
+        const cleanEmail = email.toLowerCase();
+        const res = await sqliteInstance.execute({ sql: 'SELECT id FROM users WHERE lower(email) = ?', args: [cleanEmail] });
+        if (res.rows.length === 0) {
+          const id = 'admin-' + Math.random().toString(36).substring(2, 9);
+          await sqliteInstance.execute({
+            sql: 'INSERT INTO users (id, email, password, role, name, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            args: [id, cleanEmail, hashedPassword, 'ADMIN', 'Academy Administrator', 'ACTIVE', new Date().toISOString()]
+          });
+        } else {
+          await sqliteInstance.execute({
+            sql: 'UPDATE users SET role = ?, password = ?, status = ? WHERE lower(email) = ?',
+            args: ['ADMIN', hashedPassword, 'ACTIVE', cleanEmail]
+          });
+        }
+      }
+
+      // 3. Seed/Update Student
+      const studentEmail = 'student@medcore.com';
+      const cleanStudentEmail = studentEmail.toLowerCase();
+      let studentId = '';
+      const sRes = await sqliteInstance.execute({ sql: 'SELECT id FROM users WHERE lower(email) = ?', args: [cleanStudentEmail] });
+      if (sRes.rows.length === 0) {
+        studentId = 'student-' + Math.random().toString(36).substring(2, 9);
+        await sqliteInstance.execute({
+          sql: 'INSERT INTO users (id, email, password, role, name, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          args: [studentId, cleanStudentEmail, hashedPassword, 'STUDENT', 'Registered Student', 'ACTIVE', new Date().toISOString()]
+        });
+      } else {
+        studentId = String(sRes.rows[0].id);
+        await sqliteInstance.execute({
+          sql: 'UPDATE users SET role = ?, password = ?, status = ? WHERE lower(email) = ?',
+          args: ['STUDENT', hashedPassword, 'ACTIVE', cleanStudentEmail]
+        });
+      }
+
+      const stRes = await sqliteInstance.execute({ sql: 'SELECT id FROM students WHERE user_id = ?', args: [studentId] });
+      if (stRes.rows.length === 0) {
+        const expiry = new Date();
+        expiry.setDate(expiry.getDate() + 30);
+        await sqliteInstance.execute({
+          sql: 'INSERT INTO students (id, user_id, institution, department, level, coins, access_days_remaining, access_expiry_date, streak, is_approved, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          args: ['MCA-2026-00001', studentId, 'Medcore Academy', 'Medicine & Surgery', '300 Level', 100, 30, expiry.toISOString(), 1, 1, 'ACTIVE']
+        });
       }
     } catch (err) {
       console.error('SQLite admin seeding error:', err);
