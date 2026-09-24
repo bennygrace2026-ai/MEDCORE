@@ -67,16 +67,16 @@ export default function SuperAdminLogin() {
         }),
       });
 
+      const rawText = await response.text();
       let result: any = null;
       try {
-        const text = await response.text();
-        result = text ? JSON.parse(text) : {};
+        result = rawText ? JSON.parse(rawText) : {};
       } catch {
-        throw new Error('EMAIL NOT REGISTERED');
+        result = null;
       }
 
       if (!response.ok) {
-        throw new Error(result?.error || 'Failed to sign in. Please verify your credentials.');
+        throw new Error(result?.error || 'Invalid Super Administrator credentials. Please check your email and security key.');
       }
 
       if (result.user.role !== 'SUPER_ADMIN') {

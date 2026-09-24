@@ -56,16 +56,23 @@ export default function Register() {
         body: JSON.stringify(payload),
       });
 
+      const rawText = await response.text();
       let result: any = null;
       try {
-        const text = await response.text();
-        result = text ? JSON.parse(text) : {};
+        result = rawText ? JSON.parse(rawText) : {};
       } catch {
-        throw new Error('Registration temporarily unavailable. Please try again.');
+        result = null;
       }
 
       if (!response.ok) {
-        throw new Error(result?.error || 'Failed to register');
+        const errorMsg = result?.error || (
+          response.status === 403
+            ? 'Student registration is currently closed by the academy administration.'
+            : response.status === 400
+            ? 'Please ensure all required fields are filled out accurately.'
+            : `Registration service returned status ${response.status}. Please try again.`
+        );
+        throw new Error(errorMsg);
       }
 
       if (result.token && result.user) {

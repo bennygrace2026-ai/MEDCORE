@@ -13,12 +13,20 @@ import { chatRouter } from './routes/chat.js';
 import { contactRouter } from './routes/contact.js';
 import { dbInitialization } from '../db/index.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Resolve file paths safely in both ESM and CJS bundle environments
+const currentFilename = typeof import.meta !== 'undefined' && import.meta.url
+  ? fileURLToPath(import.meta.url)
+  : (typeof __filename !== 'undefined' ? __filename : path.join(process.cwd(), 'src/server/index.ts'));
+
+const currentDirname = typeof __dirname !== 'undefined'
+  ? __dirname
+  : path.dirname(currentFilename);
 
 async function startServer() {
   const app = express();
-  const port = 3000;
+  const port = process.env.NODE_ENV === 'production' && process.env.PORT
+    ? Number(process.env.PORT)
+    : 3000;
 
   // Wait for database initialization
   console.log('Waiting for database to be ready...');

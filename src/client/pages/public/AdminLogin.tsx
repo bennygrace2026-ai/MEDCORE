@@ -64,16 +64,16 @@ export default function AdminLogin() {
         }),
       });
 
+      const rawText = await response.text();
       let result: any = null;
       try {
-        const text = await response.text();
-        result = text ? JSON.parse(text) : {};
+        result = rawText ? JSON.parse(rawText) : {};
       } catch {
-        throw new Error('EMAIL NOT REGISTERED');
+        result = null;
       }
 
       if (!response.ok) {
-        throw new Error(result?.error || 'Failed to sign in. Please verify your credentials.');
+        throw new Error(result?.error || 'Invalid administrator credentials. Please check your email and password.');
       }
 
       if (result.user.role !== 'ADMIN' && result.user.role !== 'SUPER_ADMIN') {

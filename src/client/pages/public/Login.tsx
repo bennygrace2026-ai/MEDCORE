@@ -60,16 +60,16 @@ export default function Login() {
         }),
       });
 
+      const rawText = await response.text();
       let result: any = null;
       try {
-        const text = await response.text();
-        result = text ? JSON.parse(text) : {};
+        result = rawText ? JSON.parse(rawText) : {};
       } catch {
-        throw new Error('EMAIL NOT REGISTERED');
+        result = null;
       }
 
       if (!response.ok) {
-        throw new Error(result?.error || 'Failed to sign in. Please verify your credentials.');
+        throw new Error(result?.error || 'Invalid credentials or sign-in failed. Please verify your email and password.');
       }
 
       setAuth(result.token, result.user, result.studentData);
