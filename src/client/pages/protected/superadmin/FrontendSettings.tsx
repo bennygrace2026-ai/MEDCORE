@@ -311,7 +311,7 @@ export default function FrontendSettings() {
                 Select Master Logo File (PNG, SVG, JPG, WebP)
               </label>
 
-              <div className="flex flex-col gap-3">
+               <div className="flex flex-col gap-3">
                 <div
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
@@ -319,23 +319,23 @@ export default function FrontendSettings() {
                   className="w-full"
                 >
                   <label className="cursor-pointer group block">
-                    <div className={`flex flex-col items-center justify-center p-6 sm:p-7 border-2 border-dashed rounded-2xl transition-all ${
+                    <div className={`flex flex-col items-center justify-center p-6 sm:p-8 border-2 border-dashed rounded-3xl transition-all duration-300 ${
                       isDragging 
-                        ? 'border-purple-400 bg-purple-950/40 ring-4 ring-purple-500/20 scale-[1.01]' 
-                        : 'border-zinc-700 hover:border-red-500/80 bg-zinc-900/50 group-hover:bg-zinc-900/80'
+                        ? 'border-red-500 bg-red-950/20 ring-4 ring-red-500/15 scale-[1.01]' 
+                        : 'border-zinc-700/80 hover:border-red-500 bg-zinc-900/60 group-hover:bg-zinc-900/90 shadow-inner'
                     }`}>
-                      <div className="p-3.5 bg-zinc-800/90 rounded-full mb-3 group-hover:scale-110 transition-transform shadow-inner">
-                        <Upload className={`h-6 w-6 ${isDragging ? 'text-purple-400' : 'text-red-400'}`} />
+                      <div className="p-4 bg-zinc-800/90 rounded-full mb-3 group-hover:scale-110 group-hover:bg-red-950/30 group-hover:text-red-400 transition-all shadow-inner">
+                        <Upload className={`h-6 w-6 ${isDragging ? 'text-red-500' : 'text-zinc-300 group-hover:text-red-400'}`} />
                       </div>
-                      <span className="text-sm font-semibold text-zinc-200 text-center">
+                      <span className="text-sm font-bold text-zinc-100 text-center group-hover:text-red-400 transition-colors">
                         {globalFile ? globalFile.name : 'Click to browse or drop picture here'}
                       </span>
-                      <span className="text-xs text-zinc-400 mt-1 text-center">
+                      <span className="text-[11px] text-zinc-400 mt-1.5 text-center leading-relaxed">
                         PNG, SVG, JPG, or WebP &bull; Saves immediately and persists across page refreshes
                       </span>
-                      <div className="mt-3 flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-[11px] font-semibold text-emerald-400">
+                      <div className="mt-3 flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-[11px] font-semibold text-emerald-400 animate-pulse">
                         <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                        <span>Instant Upload & Refresh Persistence Protected</span>
+                        <span>Instant Upload & Refresh Persistence Active</span>
                       </div>
                     </div>
                     <input 
@@ -353,12 +353,12 @@ export default function FrontendSettings() {
                   onClick={handleTriggerGlobalSync}
                   disabled={isUploadingGlobal}
                   aria-label="Upload and synchronize brand logo globally"
-                  className={`w-full min-h-[48px] flex items-center justify-center py-3.5 px-7 rounded-xl text-sm font-bold transition-all ${
+                  className={`w-full min-h-[50px] flex items-center justify-center py-4 px-8 rounded-2xl text-sm font-black uppercase tracking-wider transition-all duration-300 active:scale-[0.98] ${
                     isUploadingGlobal
-                      ? 'bg-zinc-800 text-zinc-400 border border-zinc-700 cursor-wait shadow-inner'
+                      ? 'bg-zinc-800 text-zinc-500 border border-zinc-700 cursor-wait shadow-inner'
                       : globalFile
                       ? 'bg-red-600 hover:bg-red-500 active:bg-red-700 text-white shadow-lg shadow-red-950/40 ring-2 ring-red-400/40 cursor-pointer group'
-                      : 'bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-900 text-zinc-100 hover:text-white border border-zinc-700 hover:border-zinc-500 shadow-sm cursor-pointer group'
+                      : 'bg-zinc-950 hover:bg-zinc-900 active:bg-black text-zinc-100 hover:text-white border border-zinc-800 hover:border-zinc-600 shadow-lg hover:shadow-red-950/20 cursor-pointer group'
                   }`}
                 >
                   {isUploadingGlobal ? (
