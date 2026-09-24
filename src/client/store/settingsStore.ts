@@ -114,6 +114,7 @@ interface SettingsState {
   globalUploadProgress: number;
   globalUploadStatus: string;
   fetchSettings: () => Promise<void>;
+  applySettingsOptimistically: (newSettings: Partial<SystemSettings>) => void;
   updateSettings: (token: string, newSettings: Partial<SystemSettings>) => Promise<boolean>;
   updateFrontendSettings: (token: string, newSettings: Partial<FrontendSettings> | FormData) => Promise<boolean>;
   uploadGlobalLogo: (token: string, file: File) => Promise<{ success: boolean; url?: string; error?: string }>;
@@ -259,13 +260,36 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     }
   },
 
+  applySettingsOptimistically: (newSettings: Partial<SystemSettings>) => {
+    const current = get().settings;
+    if (current) {
+      const updated = { ...current, ...newSettings } as SystemSettings;
+      set({ settings: updated });
+      try {
+        localStorage.setItem('medcore_system_settings', JSON.stringify(updated));
+      } catch {}
+    }
+  },
+
   updateSettings: async (token: string, newSettings: Partial<SystemSettings>) => {
     try {
+      const activeToken = token || (typeof window !== 'undefined' ? localStorage.getItem('token') || '' : '');
+      
+      // Optimistically apply immediately across all components and local storage
+      const current = get().settings;
+      if (current) {
+        const optimistic = { ...current, ...newSettings } as SystemSettings;
+        set({ settings: optimistic });
+        try {
+          localStorage.setItem('medcore_system_settings', JSON.stringify(optimistic));
+        } catch {}
+      }
+
       const response = await fetch('/api/settings', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${activeToken}`
         },
         body: JSON.stringify(newSettings)
       });

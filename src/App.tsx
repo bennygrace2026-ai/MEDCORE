@@ -61,8 +61,14 @@ import { preloadImage } from './client/utils/preloadAssets';
 
 export default function App() {
   const { checkAuth, isLoading: authLoading } = useAuthStore();
-  const { fetchSettings, isLoading: settingsLoading } = useSettingsStore();
+  const { fetchSettings, isLoading: settingsLoading, settings } = useSettingsStore();
   const [showApp, setShowApp] = useState(false);
+
+  useEffect(() => {
+    if (settings?.siteTitle) {
+      document.title = settings.siteSubtitle ? `${settings.siteTitle} | ${settings.siteSubtitle}` : settings.siteTitle;
+    }
+  }, [settings?.siteTitle, settings?.siteSubtitle]);
 
   useEffect(() => {
     let isMounted = true;

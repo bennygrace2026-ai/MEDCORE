@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Coins, 
   Plus, 
@@ -11,20 +11,25 @@ import {
   Sparkles,
   AlertCircle,
   HelpCircle,
-  Calculator
+  Calculator,
+  RefreshCw
 } from 'lucide-react';
 import { useSettingsStore, CoinPackage, parseCoinPackages, DEFAULT_PACKAGES } from '../../store/settingsStore';
 import { useAuthStore } from '../../store/authStore';
 
 export default function CoinPackageEditor() {
-  const { settings, updateSettings, fetchSettings } = useSettingsStore();
+  const { settings, updateSettings, fetchSettings, applySettingsOptimistically } = useSettingsStore();
   const { token } = useAuthStore();
   
   const [packages, setPackages] = useState<CoinPackage[]>([]);
   const [quizCoinCost, setQuizCoinCost] = useState<number>(30);
   const [isSaving, setIsSaving] = useState(false);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [autoStatus, setAutoStatus] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const debounceTimer = useRef<any>(null);
 
   useEffect(() => {
     if (settings) {
@@ -41,6 +46,35 @@ export default function CoinPackageEditor() {
       fetchSettings();
     }
   }, [settings, fetchSettings]);
+
+  const autoSaveSettings = (updatedPackages: CoinPackage[], updatedQuizCost: number) => {
+    // 1. Instantly apply optimistically
+    applySettingsOptimistically({
+      coinPackages: updatedPackages,
+      quizCoinCost: updatedQuizCost
+    });
+    setIsAutoSaving(true);
+    setAutoStatus('Applying changes...');
+
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+
+    debounceTimer.current = setTimeout(async () => {
+      const activeToken = token || localStorage.getItem('token') || '';
+      const ok = await updateSettings(activeToken, {
+        coinPackages: updatedPackages,
+        quizCoinCost: updatedQuizCost
+      });
+      setIsAutoSaving(false);
+      if (ok) {
+        setAutoStatus('✓ Applied globally');
+        setTimeout(() => setAutoStatus(null), 3000);
+      } else {
+        setAutoStatus('Error saving');
+      }
+    }, 450);
+  };
 
   const handlePackageChange = (index: number, field: keyof CoinPackage, value: any) => {
     setPackages(prev => {
@@ -70,8 +104,15 @@ export default function CoinPackageEditor() {
       }
 
       updated[index] = target;
+      autoSaveSettings(updated, quizCoinCost);
       return updated;
     });
+  };
+
+  const handleQuizCoinCostChange = (val: number) => {
+    const cost = Math.max(1, val);
+    setQuizCoinCost(cost);
+    autoSaveSettings(packages, cost);
   };
 
   const handleAddPackage = () => {
@@ -88,7 +129,9 @@ export default function CoinPackageEditor() {
       text: 'text-zinc-900',
       border: 'border-zinc-200'
     };
-    setPackages(prev => [...prev, newPackage]);
+    const updated = [...packages, newPackage];
+    setPackages(updated);
+    autoSaveSettings(updated, quizCoinCost);
   };
 
   const handleDeletePackage = (index: number) => {
@@ -96,30 +139,37 @@ export default function CoinPackageEditor() {
       alert('You must maintain at least one coin package for students to purchase.');
       return;
     }
-    setPackages(prev => prev.filter((_, i) => i !== index));
+    const updated = packages.filter((_, i) => i !== index);
+    setPackages(updated);
+    autoSaveSettings(updated, quizCoinCost);
   };
 
   const handleResetDefaults = () => {
     if (confirm('Reset packages to standard (1,000 coins for ₦2,000) and quiz price to 30 coins per quiz?')) {
       setPackages(DEFAULT_PACKAGES);
       setQuizCoinCost(30);
+      autoSaveSettings(DEFAULT_PACKAGES, 30);
     }
   };
 
   const handleSave = async () => {
-    if (!token) return;
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    const activeToken = token || localStorage.getItem('token') || '';
     setIsSaving(true);
     setSuccessMessage(null);
     setErrorMessage(null);
 
     try {
-      const ok = await updateSettings(token, {
+      const ok = await updateSettings(activeToken, {
         coinPackages: packages,
         quizCoinCost: Math.max(1, Number(quizCoinCost) || 30)
       });
 
       if (ok) {
         setSuccessMessage(`Saved successfully! Quiz price set to ${quizCoinCost} coins per quiz and all ${packages.length} coin packages updated.`);
+        setAutoStatus('✓ Applied globally');
         setTimeout(() => setSuccessMessage(null), 5000);
       } else {
         setErrorMessage('Failed to save settings. Please check connection and try again.');
@@ -153,10 +203,22 @@ export default function CoinPackageEditor() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {isAutoSaving ? (
+            <span className="inline-flex items-center px-2.5 py-1 text-xs font-semibold text-purple-600 bg-purple-50 border border-purple-200 rounded-lg animate-pulse">
+              <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+              Applying...
+            </span>
+          ) : autoStatus ? (
+            <span className="inline-flex items-center px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg">
+              <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-600" />
+              {autoStatus}
+            </span>
+          ) : null}
+
           <button
             type="button"
             onClick={handleResetDefaults}
-            className="inline-flex items-center px-3 py-2 text-xs font-semibold text-zinc-600 bg-zinc-100 hover:bg-zinc-200 rounded-lg transition-colors"
+            className="inline-flex items-center px-3 py-2 text-xs font-semibold text-zinc-600 bg-zinc-100 hover:bg-zinc-200 rounded-lg transition-colors cursor-pointer"
             title="Reset to 1,000 coins = ₦2,000 / 1 Month"
           >
             <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
@@ -165,7 +227,7 @@ export default function CoinPackageEditor() {
           <button
             type="button"
             onClick={handleAddPackage}
-            className="inline-flex items-center px-3.5 py-2 text-xs font-semibold text-purple-700 bg-purple-100 hover:bg-purple-200 rounded-lg transition-colors"
+            className="inline-flex items-center px-3.5 py-2 text-xs font-semibold text-purple-700 bg-purple-100 hover:bg-purple-200 rounded-lg transition-colors cursor-pointer"
           >
             <Plus className="h-3.5 w-3.5 mr-1" />
             Add Package
@@ -174,7 +236,7 @@ export default function CoinPackageEditor() {
             type="button"
             onClick={handleSave}
             disabled={isSaving}
-            className="inline-flex items-center px-4 py-2 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-lg shadow-sm transition-colors"
+            className="inline-flex items-center px-4 py-2 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-lg shadow-sm transition-colors cursor-pointer"
           >
             <Save className="h-3.5 w-3.5 mr-1.5" />
             {isSaving ? 'Saving...' : 'Save All Packages'}
@@ -230,7 +292,7 @@ export default function CoinPackageEditor() {
                   min="1"
                   max="5000"
                   value={quizCoinCost}
-                  onChange={(e) => setQuizCoinCost(Math.max(1, Number(e.target.value) || 1))}
+                  onChange={(e) => handleQuizCoinCostChange(Number(e.target.value))}
                   className="w-24 px-3 py-1.5 text-lg font-black text-amber-600 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none text-center bg-amber-50/40"
                 />
                 <span className="text-xs font-bold text-zinc-800">Coins / Quiz</span>
@@ -247,8 +309,8 @@ export default function CoinPackageEditor() {
                   <button
                     key={preset}
                     type="button"
-                    onClick={() => setQuizCoinCost(preset)}
-                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-colors ${
+                    onClick={() => handleQuizCoinCostChange(preset)}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
                       quizCoinCost === preset 
                         ? 'bg-amber-500 text-zinc-950 shadow-xs' 
                         : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'

@@ -60,10 +60,11 @@ export default function Financials() {
 
   const handleSaveAccountDetails = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token) return;
+    const activeToken = token || localStorage.getItem('token') || '';
+    if (!activeToken) return;
 
     setIsSaving(true);
-    const success = await updateSettings(token, {
+    const success = await updateSettings(activeToken, {
       bankName,
       accountName,
       accountNumber,

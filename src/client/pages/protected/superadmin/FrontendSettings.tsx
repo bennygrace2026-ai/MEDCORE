@@ -88,11 +88,26 @@ export default function FrontendSettings() {
     }
   }, [frontendSettings, globalFile]);
 
+  const debounceTimer = useRef<any>(null);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
+    const { name, value } = e.target;
+    setFormData(prev => {
+      const updated = {
+        ...prev,
+        [name]: value
+      };
+
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      debounceTimer.current = setTimeout(async () => {
+        const activeToken = token || localStorage.getItem('token') || '';
+        await updateFrontendSettings(activeToken, updated);
+        setSaveMessage('✓ Changes automatically applied');
+        setTimeout(() => setSaveMessage(''), 3000);
+      }, 500);
+
+      return updated;
+    });
   };
 
   // Helper to process and immediately persist an uploaded file to server & localStorage
