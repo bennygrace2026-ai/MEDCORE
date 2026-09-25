@@ -249,56 +249,40 @@ const setupDatabase = async () => {
     activeUrl = await resolveHostToIPv4(activeUrl);
   }
 
-  if (activeUrl && (activeUrl.startsWith('postgres://') || activeUrl.startsWith('postgresql://'))) {
-    // 1. Try connecting to the provided database URL as-is
-    try {
-      console.log('Attempting connection to cloud database with resolved URL...');
-      const client = postgres(activeUrl, {
-        ssl: 'require',
-        connect_timeout: 3, // Fail fast (3s) to allow alternatives or SQLite fallback
-        prepare: false
-      });
-      await client`SELECT 1`;
-      queryClient = client;
-      console.log('Postgres connected successfully.');
-    } catch (err: any) {
-      // Quiet informational notice to avoid triggering automated log warning flags
-      console.log('[Database Info] Cloud database primary port test: not active. Checking alternative configurations...');
-  
-      // 2. Fallback: If it contains :5432/ and failed, try with pooler port :6543/
-      if (activeUrl.includes(':5432/')) {
+  const hasCloudDbUrl = !!(activeUrl && (activeUrl.startsWith('postgres://') || activeUrl.startsWith('postgresql://')));
+
+  if (hasCloudDbUrl) {
+    // We have a cloud database URL configured! We must connect to it successfully.
+    // We will try multiple configurations with a generous 15-second timeout.
+    const sslConfigs = ['require', { rejectUnauthorized: false }, false];
+    const candidateUrls = [
+      activeUrl,
+      activeUrl.includes(':5432/') ? activeUrl.replace(':5432/', ':6543/') : null,
+      activeUrl.includes(':6543/') ? activeUrl.replace(':6543/', ':5432/') : null,
+    ].filter(Boolean) as string[];
+
+    console.log(`[Database Setup] Cloud database configured. Attempting connection across ${candidateUrls.length} candidate URLs and SSL settings...`);
+
+    let lastError: any = null;
+    for (const url of candidateUrls) {
+      for (const ssl of sslConfigs) {
         try {
-          const pooledUrl = activeUrl.replace(':5432/', ':6543/');
-          const client = postgres(pooledUrl, {
-            ssl: 'require',
-            connect_timeout: 3,
+          console.log(`[Database Connection] Trying URL on port ${new URL(url.replace('postgresql://', 'http://').replace('postgres://', 'http://')).port || 'default'} with SSL: ${typeof ssl === 'object' ? 'custom' : ssl}...`);
+          const client = postgres(url, {
+            ssl: ssl as any,
+            connect_timeout: 15, // Large, robust 15-second timeout for cloud cold starts
             prepare: false
           });
           await client`SELECT 1`;
           queryClient = client;
-          console.log('Postgres connected successfully with transaction pooler URL.');
-        } catch (poolErr: any) {
-          // Log as simple silent info notice
-          console.log('[Database Info] Cloud database transaction pooler test: not active.');
+          console.log('[Database Connection] Postgres cloud database connected successfully!');
+          break;
+        } catch (err: any) {
+          lastError = err;
+          // Continue to next configuration
         }
       }
-  
-      // 3. Alternate Fallback: If it contains :6543/ and failed, try with direct port :5432/
-      if (!queryClient && activeUrl.includes(':6543/')) {
-        try {
-          const directUrl = activeUrl.replace(':6543/', ':5432/');
-          const client = postgres(directUrl, {
-            ssl: 'require',
-            connect_timeout: 3,
-            prepare: false
-          });
-          await client`SELECT 1`;
-          queryClient = client;
-          console.log('Postgres connected successfully with direct connection URL.');
-        } catch (directErr: any) {
-          console.log('[Database Info] Cloud database direct port test: not active.');
-        }
-      }
+      if (queryClient) break;
     }
 
     if (queryClient) {
@@ -307,14 +291,35 @@ const setupDatabase = async () => {
         await initializePostgres(queryClient);
         await migrate(queryClient);
       } catch (initErr: any) {
-        console.log('Postgres schema initialization failed. Falling back to SQLite. Error:', initErr.message);
+        console.error('[Database Setup Error] Postgres schema initialization failed:', initErr);
+        if (process.env.NODE_ENV === 'production') {
+          throw initErr;
+        } else {
+          console.log('[Database Setup] Gracefully falling back to SQLite for development/testing sandbox...');
+          queryClient = null;
+        }
+      }
+    } else {
+      console.error('[Database Setup Error] Failed to connect to Supabase Cloud Database. Connection failed across all configurations:', lastError?.message || lastError);
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(`Failed to connect to Supabase database: ${lastError?.message || 'Check database string and credentials.'}`);
+      } else {
+        console.log('[Database Setup] Gracefully falling back to SQLite for development/testing sandbox...');
         queryClient = null;
       }
     }
-  }
 
-  if (!queryClient) {
-    console.log('DATABASE NOTICE: Cloud database unreachable or unconfigured. Seamlessly utilizing local SQLite database.');
+    if (!queryClient) {
+      console.log('[Database Setup] Utilizing local SQLite fallback for testing sandbox...');
+      const isServerless = !!(process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT);
+      const dbPath = isServerless ? 'file:/tmp/local.db' : 'file:./local.db';
+      sqliteInstance = createClient({ url: dbPath });
+      dbInstance = drizzleLibsql(sqliteInstance, { schema });
+      await migrate();
+    }
+  } else {
+    // No cloud database configured. Seamlessly utilizing local SQLite database.
+    console.log('DATABASE NOTICE: No cloud database configured. Seamlessly utilizing local SQLite database.');
     const isServerless = !!(process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT);
     const dbPath = isServerless ? 'file:/tmp/local.db' : 'file:./local.db';
     sqliteInstance = createClient({ url: dbPath });
