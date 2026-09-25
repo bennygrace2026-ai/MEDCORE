@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Helmet, HelmetProvider } from 'react-helmet-async';
 import { useAuthStore } from './client/store/authStore';
 import { useSettingsStore } from './client/store/settingsStore';
 
@@ -56,6 +57,78 @@ import AdminPayments from './client/pages/protected/admin/AdminPayments';
 import AdminSettings from './client/pages/protected/admin/AdminSettings';
 import AdminCommunityChat from './client/pages/protected/admin/AdminCommunityChat';
 import SuperAdminCommunityChat from './client/pages/protected/superadmin/SuperAdminCommunityChat';
+
+function SEOMetadataManager() {
+  const location = useLocation();
+  const { settings, frontendSettings } = useSettingsStore();
+
+  const path = location.pathname;
+  const isPublic = [
+    '/',
+    '/login',
+    '/register',
+    '/courses',
+    '/pricing',
+    '/contact',
+    '/admin/login',
+    '/super-admin/login'
+  ].includes(path);
+
+  // Robots indexing rule: index public pages, keep private student/admin portals out of search results
+  const robotsRule = isPublic ? 'index, follow' : 'noindex, nofollow';
+
+  // Branded Title
+  let title = settings?.siteTitle || 'Medcore Academy';
+  let description = frontendSettings?.heroSubheading || 'Accelerate Your Medical Career. Join thousands of medical students passing their exams with our precision-engineered mock tests.';
+  
+  if (path === '/') {
+    title = `${settings?.siteTitle || 'Medcore Academy'} | Master Medicine with Precision`;
+  } else if (path === '/login' || path === '/register') {
+    title = `Sign In | ${settings?.siteTitle || 'Medcore Academy'}`;
+  } else if (path === '/courses') {
+    title = `Our Clinical Courses | ${settings?.siteTitle || 'Medcore Academy'}`;
+  } else if (path === '/pricing') {
+    title = `Affordable High-Yield Plans | ${settings?.siteTitle || 'Medcore Academy'}`;
+  } else if (path === '/contact') {
+    title = `Contact Clinical Support | ${settings?.siteTitle || 'Medcore Academy'}`;
+  } else if (path.startsWith('/dashboard')) {
+    title = `Student Learning Portal | ${settings?.siteTitle || 'Medcore Academy'}`;
+    description = 'Access your clinical lectures, board-style practice questions, mock tests, and virtual peer study rooms.';
+  } else if (path.startsWith('/admin')) {
+    title = `Academy Administrator Dashboard | ${settings?.siteTitle || 'Medcore Academy'}`;
+  } else if (path.startsWith('/super-admin')) {
+    title = `Main Controller Panel | ${settings?.siteTitle || 'Medcore Academy'}`;
+  }
+
+  const canonicalUrl = window.location.origin + path;
+  
+  // Use uploaded brand logo or professional high-resolution medical education banner image as fallback for OpenGraph card
+  const socialImage = frontendSettings?.heroLogo || frontendSettings?.loginLogo || 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=1200&q=80';
+
+  return (
+    <Helmet>
+      {/* Search Engine Optimization meta tags */}
+      <title>{title}</title>
+      <meta name="description" content={description} />
+      <link rel="canonical" href={canonicalUrl} />
+      <meta name="robots" content={robotsRule} />
+
+      {/* Facebook OpenGraph social sharing meta tags */}
+      <meta property="og:type" content="website" />
+      <meta property="og:title" content={title} />
+      <meta property="og:description" content={description} />
+      <meta property="og:url" content={canonicalUrl} />
+      <meta property="og:image" content={socialImage} />
+      <meta property="og:site_name" content={settings?.siteTitle || 'Medcore Academy'} />
+
+      {/* Twitter / X card social sharing meta tags */}
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:title" content={title} />
+      <meta name="twitter:description" content={description} />
+      <meta name="twitter:image" content={socialImage} />
+    </Helmet>
+  );
+}
 
 export default function App() {
   const { checkAuth } = useAuthStore();
@@ -128,9 +201,11 @@ export default function App() {
       {!showApp ? (
         <GlobalLoader progress={loadingProgress} statusText={loadingStep} />
       ) : (
-        <div className="min-h-screen flex flex-col">
-          <BrowserRouter>
-            <Routes>
+        <HelmetProvider>
+          <div className="min-h-screen flex flex-col">
+            <BrowserRouter>
+              <SEOMetadataManager />
+              <Routes>
               {/* Public Routes */}
               <Route element={<PublicLayout />}>
                 <Route path="/" element={<Home />} />
@@ -216,8 +291,9 @@ export default function App() {
                 <Route path="*" element={<NotFound />} />
               </Route>
             </Routes>
-          </BrowserRouter>
-        </div>
+            </BrowserRouter>
+          </div>
+        </HelmetProvider>
       )}
     </ErrorBoundary>
   );

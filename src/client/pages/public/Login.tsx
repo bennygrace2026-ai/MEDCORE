@@ -73,6 +73,9 @@ export default function Login() {
       }
 
       if (!response.ok) {
+        if (response.status >= 500) {
+          throw new Error('Server Error: Netlify Serverless Function crashed or timed out. Please configure your SUPABASE_DATABASE_URL environment variable in your Netlify Site Settings.');
+        }
         throw new Error(result?.error || 'Invalid credentials or sign-in failed. Please verify your email and password.');
       }
 

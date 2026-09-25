@@ -27,10 +27,15 @@ async function resolveHostToIPv4(urlStr: string): Promise<string> {
   return urlStr;
 }
 
-let supabaseDbUrl = process.env.SUPABASE_DATABASE_URL;
+const defaultSupabaseUrl = 'postgresql://postgres:chimuanya2001@db.sdpjxnmzxgpsxovpbwnk.supabase.co:5432/postgres';
+let supabaseDbUrl = process.env.SUPABASE_DATABASE_URL || (process.env.NETLIFY ? defaultSupabaseUrl : undefined);
+if (supabaseDbUrl && supabaseDbUrl.includes('[YOUR-PASSWORD]')) {
+  supabaseDbUrl = supabaseDbUrl.replace('[YOUR-PASSWORD]', process.env.SUPABASE_DATABASE_PASSWORD || 'chimuanya2001');
+}
 
 let dbInstance: any;
 let sqliteInstance: any;
+let isSchemaInitialized = false;
 
 const initializePostgres = async (sql: any) => {
   try {
@@ -242,6 +247,10 @@ const migrate = async (sql?: any) => {
 };
 
 const setupDatabase = async () => {
+  if (isSchemaInitialized) {
+    console.log('[Database Setup] Connection and schema are already initialized in this process container.');
+    return;
+  }
   let queryClient: any = null;
 
   let activeUrl = supabaseDbUrl;
@@ -290,6 +299,7 @@ const setupDatabase = async () => {
         dbInstance = drizzlePg(queryClient, { schema });
         await initializePostgres(queryClient);
         await migrate(queryClient);
+        isSchemaInitialized = true;
       } catch (initErr: any) {
         console.error('[Database Setup Error] Postgres schema initialization failed:', initErr);
         if (process.env.NODE_ENV === 'production') {
@@ -316,6 +326,7 @@ const setupDatabase = async () => {
       sqliteInstance = createClient({ url: dbPath });
       dbInstance = drizzleLibsql(sqliteInstance, { schema });
       await migrate();
+      isSchemaInitialized = true;
     }
   } else {
     // No cloud database configured. Seamlessly utilizing local SQLite database.
@@ -325,6 +336,7 @@ const setupDatabase = async () => {
     sqliteInstance = createClient({ url: dbPath });
     dbInstance = drizzleLibsql(sqliteInstance, { schema });
     await migrate();
+    isSchemaInitialized = true;
   }
 };
 

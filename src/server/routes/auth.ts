@@ -8,7 +8,7 @@ import { authenticateToken, AuthRequest } from '../middleware/auth.js';
 import { syncAndFormatStudent } from '../utils/studentAccess.js';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-for-development-only-2026';
+const JWT_SECRET = process.env.JWT_SECRET || 'chimuanya2001';
 
 const generateStudentId = async (): Promise<string> => {
   try {
