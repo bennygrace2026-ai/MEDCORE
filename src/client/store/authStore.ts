@@ -81,15 +81,27 @@ export const useAuthStore = create<AuthState>((set) => ({
       });
 
       if (response.ok) {
-        const data = await response.json();
-        set({ user: data.user, studentData: data.studentData, isAuthenticated: true, isLoading: false });
-      } else {
+        const rawText = await response.text();
+        let data: any = null;
+        try {
+          data = JSON.parse(rawText);
+        } catch {
+          data = null;
+        }
+
+        if (data && data.user) {
+          set({ user: data.user, studentData: data.studentData, isAuthenticated: true, isLoading: false });
+          return;
+        }
+      } else if (response.status === 401 || response.status === 403) {
         localStorage.removeItem('token');
         set({ token: null, user: null, studentData: null, isAuthenticated: false, isLoading: false });
+        return;
       }
+      set({ isLoading: false });
     } catch (error) {
-      localStorage.removeItem('token');
-      set({ token: null, user: null, studentData: null, isAuthenticated: false, isLoading: false });
+      // Keep token in storage on transient network disconnection so user isn't abruptly logged out
+      set({ isLoading: false });
     }
   }
 }));

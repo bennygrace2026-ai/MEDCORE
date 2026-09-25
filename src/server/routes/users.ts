@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
-import { db } from '../../db/index.js';
+import { db, dbInitialization } from '../../db/index.js';
 import { users, students, paymentRequests, enrollments, courses, topics, quizzes, questions, courseCompletions, quizAttempts, studentStudySessions, chatMessages, friendRequests, videos, notifications } from '../../db/schema.js';
 import { eq, inArray, desc, and, or, sql } from 'drizzle-orm';
 import { authenticateToken, AuthRequest } from '../middleware/auth.js';
@@ -364,6 +364,7 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res) => {
 // Student Dashboard: Comprehensive Quick Stats & Learning Summary
 router.get('/student-dashboard-stats', authenticateToken, async (req: AuthRequest, res) => {
   try {
+    await dbInitialization;
     const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -421,20 +422,25 @@ router.get('/student-dashboard-stats', authenticateToken, async (req: AuthReques
       averageScore = Math.round(totalScorePercent / quizAttemptRows.length);
     }
 
-    // 7. Calculate Total Hours Spent Learning
+    // 7. Calculate Total Learning Time:
+    // (a) Time PDF/note material was open and closed (recorded in studentStudySessions)
+    // (b) Time spent taking quizzes (recorded in quizAttempts.timeSpentSeconds)
     const studySessionRows = await db.select().from(studentStudySessions).where(eq(studentStudySessions.userId, userId)).orderBy(desc(studentStudySessions.createdAt));
     
-    // Sum minutes from sessions
-    const loggedMinutes = studySessionRows.reduce((sum, s) => sum + (s.minutes || 0), 0);
-    // Sum minutes from quiz attempts
-    const quizMinutes = quizAttemptRows.reduce((sum, q) => sum + Math.max(5, Math.ceil((q.timeSpentSeconds || 300) / 60)), 0);
+    // Reading sessions from PDF or written lecture notes (filter out any quiz duplicates)
+    const readingSessions = studySessionRows.filter(s => !s.activityTitle?.startsWith('Completed Quiz:'));
+    const readingMinutes = readingSessions.reduce((sum, s) => sum + (s.minutes || 0), 0);
     
-    // Baseline starter hours for students based on active account usage & streak
-    const streakDays = Math.max(1, student?.streak || 1);
-    const baseMinutes = Math.min(180, streakDays * 35); // healthy starter time so new students don't see cold zero
+    // Quiz time from all quizzes answered/taken
+    const quizMinutes = quizAttemptRows.reduce((sum, q) => {
+      const seconds = typeof q.timeSpentSeconds === 'number' && q.timeSpentSeconds > 0 ? q.timeSpentSeconds : 0;
+      return sum + Math.max(1, Math.round(seconds / 60));
+    }, 0);
     
-    const totalMinutes = loggedMinutes + quizMinutes + (loggedMinutes === 0 && quizMinutes === 0 ? baseMinutes : 0);
+    const totalMinutes = readingMinutes + quizMinutes;
     const totalHours = Number((totalMinutes / 60).toFixed(1));
+    const readingHours = Number((readingMinutes / 60).toFixed(1));
+    const quizHours = Number((quizMinutes / 60).toFixed(1));
 
     // 8. Recent Activity items
     const recentActivity = [
@@ -444,6 +450,7 @@ router.get('/student-dashboard-stats', authenticateToken, async (req: AuthReques
         title: `Completed Clinical Quiz`,
         score: a.score,
         maxScore: a.maxScore,
+        durationMinutes: Math.max(1, Math.round((a.timeSpentSeconds || 0) / 60)),
         date: a.completedAt
       })),
       ...completedCoursesRows.slice(0, 3).map(c => {
@@ -455,7 +462,7 @@ router.get('/student-dashboard-stats', authenticateToken, async (req: AuthReques
           date: c.completedAt
         };
       }),
-      ...studySessionRows.slice(0, 3).map(s => ({
+      ...readingSessions.slice(0, 4).map(s => ({
         id: s.id,
         type: 'STUDY_SESSION',
         title: s.activityTitle,
@@ -473,6 +480,11 @@ router.get('/student-dashboard-stats', authenticateToken, async (req: AuthReques
       totalQuizzesCount: allQuizzes.length,
       totalHoursSpentLearning: totalHours,
       totalMinutesSpentLearning: totalMinutes,
+      readingMinutes,
+      readingHours,
+      quizMinutes,
+      quizHours,
+      readingSessionsCount: readingSessions.length,
       streak: student?.streak || 1,
       averageScore,
       recentActivity,
@@ -488,7 +500,7 @@ router.get('/student-dashboard-stats', authenticateToken, async (req: AuthReques
   }
 });
 
-// Student log study session (e.g. 25 min lecture review, anatomy flashcards, etc.)
+// Student log study session (e.g. from closing a PDF/note reader modal, or manual study logging)
 router.post('/student-log-study', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id;
@@ -496,9 +508,16 @@ router.post('/student-log-study', authenticateToken, async (req: AuthRequest, re
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { minutes, activityTitle, courseId } = req.body;
-    const sessionMinutes = Math.max(1, Math.min(300, Number(minutes) || 30));
-    const title = String(activityTitle || 'Interactive Clinical Study Session');
+    const { minutes, seconds, activityTitle, courseId, materialType } = req.body;
+    let sessionMinutes = 0;
+    if (typeof seconds === 'number' && seconds > 0) {
+      sessionMinutes = Math.max(1, Math.round(seconds / 60));
+    } else {
+      sessionMinutes = Math.max(1, Math.min(600, Number(minutes) || 1));
+    }
+
+    const typeLabel = materialType === 'PDF' ? 'PDF Material' : materialType === 'NOTE' ? 'Lecture Note' : 'Course Material';
+    const title = String(activityTitle || `Studied ${typeLabel}`);
 
     await db.insert(studentStudySessions).values({
       id: uuidv4(),
@@ -509,7 +528,11 @@ router.post('/student-log-study', authenticateToken, async (req: AuthRequest, re
       createdAt: new Date()
     });
 
-    res.json({ success: true, message: `Logged ${sessionMinutes} minutes of study time!`, loggedMinutes: sessionMinutes });
+    res.json({ 
+      success: true, 
+      message: `Logged ${sessionMinutes} minute${sessionMinutes === 1 ? '' : 's'} of learning time!`, 
+      loggedMinutes: sessionMinutes 
+    });
   } catch (error) {
     console.error('Log study session error:', error);
     res.status(500).json({ error: 'Server error logging study session' });

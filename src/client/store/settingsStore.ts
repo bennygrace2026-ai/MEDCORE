@@ -183,6 +183,30 @@ const getInitialFrontendSettings = (): FrontendSettings => {
   }
 };
 
+// Resilient JSON fetch helper with retry and graceful fallback
+async function fetchSafeJson<T>(url: string, retries = 2, delayMs = 600): Promise<T | null> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (res.ok) {
+        return (await res.json()) as T;
+      }
+      if (attempt < retries && (res.status >= 500 || res.status === 404)) {
+        await new Promise((r) => setTimeout(r, delayMs));
+        continue;
+      }
+      return null;
+    } catch (err) {
+      if (attempt < retries) {
+        await new Promise((r) => setTimeout(r, delayMs));
+        continue;
+      }
+      return null;
+    }
+  }
+  return null;
+}
+
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   settings: getInitialSettings(),
   frontendSettings: getInitialFrontendSettings(),
@@ -193,16 +217,16 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   fetchSettings: async () => {
     try {
-      const [sysRes, frontRes] = await Promise.all([
-        fetch('/api/settings', { cache: 'no-store' }),
-        fetch('/api/settings/frontend', { cache: 'no-store' })
+      // Concurrently and safely fetch system settings and frontend settings with retries
+      const [rawSysData, rawFrontData] = await Promise.all([
+        fetchSafeJson<any>('/api/settings', 2, 700),
+        fetchSafeJson<any>('/api/settings/frontend', 2, 700)
       ]);
       
-      let sysData = null;
-      let frontData = null;
+      let sysData = rawSysData;
+      let frontData = rawFrontData ? enrichFrontendSettings(rawFrontData) : null;
 
-      if (sysRes.ok) {
-        sysData = await sysRes.json();
+      if (sysData) {
         try {
           localStorage.setItem('medcore_system_settings', JSON.stringify(sysData));
         } catch {
@@ -210,10 +234,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         }
       }
 
-      if (frontRes.ok) {
-        const rawFrontData = await frontRes.json();
-        frontData = enrichFrontendSettings(rawFrontData);
-        
+      if (frontData && rawFrontData) {
         // Static persistence check: ensure genuine uploaded logo is kept in storage
         const staticLogo = getSuperAdminStaticLogo();
         const serverHasValidLogo = rawFrontData?.heroLogo && isValidBrandLogo(rawFrontData.heroLogo);
@@ -255,8 +276,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         isLoading: false 
       });
     } catch (error) {
-      console.error('Failed to fetch settings:', error);
-      set({ isLoading: false });
+      // Retain existing cached settings gracefully without breaking application flow
+      set({ 
+        settings: get().settings,
+        frontendSettings: get().frontendSettings,
+        isLoading: false 
+      });
     }
   },
 

@@ -70,16 +70,8 @@ const initializePostgres = async (sql: any) => {
       }
     }
 
-    // 2. Seed/Update Admins
-    const adminEmails = ['admin@medcore.com', 'admin@medcoreacademy.com'];
-    for (const aEmail of adminEmails) {
-      const adminResult = await sql`SELECT count(*) FROM users WHERE email = ${aEmail.toLowerCase()}`;
-      if (parseInt(adminResult[0].count) === 0) {
-        await sql`INSERT INTO users (id, email, password, role, name, status, created_at) VALUES (${uuidv4()}, ${aEmail.toLowerCase()}, ${defaultPassword}, 'ADMIN', 'Academy Administrator', 'ACTIVE', NOW())`;
-      } else {
-        await sql`UPDATE users SET role = 'ADMIN', password = ${defaultPassword}, status = 'ACTIVE' WHERE email = ${aEmail.toLowerCase()}`;
-      }
-    }
+    // 2. Ensure default admins are deleted on startup and never re-seeded
+    await sql`DELETE FROM users WHERE email IN ('admin@medcore.com', 'admin@medcoreacademy.com')`;
 
     // 3. Seed/Update Demo Student
     const studentEmail = 'student@medcore.com';
@@ -192,24 +184,10 @@ const migrate = async (sql?: any) => {
         }
       }
 
-      // 2. Seed/Update Admin
-      const adminEmails = ['admin@medcore.com', 'admin@medcoreacademy.com'];
-      for (const email of adminEmails) {
-        const cleanEmail = email.toLowerCase();
-        const res = await sqliteInstance.execute({ sql: 'SELECT id FROM users WHERE lower(email) = ?', args: [cleanEmail] });
-        if (res.rows.length === 0) {
-          const id = 'admin-' + Math.random().toString(36).substring(2, 9);
-          await sqliteInstance.execute({
-            sql: 'INSERT INTO users (id, email, password, role, name, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            args: [id, cleanEmail, hashedPassword, 'ADMIN', 'Academy Administrator', 'ACTIVE', new Date().toISOString()]
-          });
-        } else {
-          await sqliteInstance.execute({
-            sql: 'UPDATE users SET role = ?, password = ?, status = ? WHERE lower(email) = ?',
-            args: ['ADMIN', hashedPassword, 'ACTIVE', cleanEmail]
-          });
-        }
-      }
+      // 2. Ensure default admins are deleted on startup and never re-seeded
+      await sqliteInstance.execute({
+        sql: "DELETE FROM users WHERE lower(email) IN ('admin@medcore.com', 'admin@medcoreacademy.com')"
+      });
 
       // 3. Seed/Update Student
       const studentEmail = 'student@medcore.com';
@@ -336,8 +314,10 @@ const setupDatabase = async () => {
   }
 
   if (!queryClient) {
-    console.log('DATABASE NOTICE: Cloud database unreachable or unconfigured. Seamlessly utilizing local SQLite database (local.db).');
-    sqliteInstance = createClient({ url: 'file:./local.db' });
+    console.log('DATABASE NOTICE: Cloud database unreachable or unconfigured. Seamlessly utilizing local SQLite database.');
+    const isServerless = !!(process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT);
+    const dbPath = isServerless ? 'file:/tmp/local.db' : 'file:./local.db';
+    sqliteInstance = createClient({ url: dbPath });
     dbInstance = drizzleLibsql(sqliteInstance, { schema });
     await migrate();
   }
@@ -346,7 +326,11 @@ const setupDatabase = async () => {
 // Start setup
 export const dbInitialization = setupDatabase();
 
-export const sqlite = sqliteInstance;
+export const sqlite = new Proxy({}, {
+  get(target, prop) {
+    return sqliteInstance ? sqliteInstance[prop] : undefined;
+  }
+}) as any;
 export const db = new Proxy({}, {
   get(target, prop) {
     if (!dbInstance) throw new Error('Database not initialized yet.');

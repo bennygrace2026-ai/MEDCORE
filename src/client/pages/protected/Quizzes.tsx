@@ -12,7 +12,8 @@ import {
   Sparkles, 
   AlertCircle,
   X,
-  RotateCcw
+  RotateCcw,
+  Award
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -84,6 +85,7 @@ export default function Quizzes() {
   // Buy coins modal
   const [showBuyCoinsModal, setShowBuyCoinsModal] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
+  const [uiNotice, setUiNotice] = useState<string | null>(null);
 
   const isPaidOrApproved = Boolean(
     user?.role === 'ADMIN' || 
@@ -92,20 +94,31 @@ export default function Quizzes() {
     (studentData?.coins && studentData.coins > 0)
   );
 
-  const fetchQuizzes = () => {
+  const fetchQuizzes = async () => {
     if (!token) return;
     setIsLoadingList(true);
-    fetch('/api/quizzes', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setQuizzes(data);
+    for (let attempt = 0; attempt <= 2; attempt++) {
+      try {
+        const res = await fetch('/api/quizzes', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setQuizzes(data);
+          }
+          break;
         }
-      })
-      .catch(err => console.error('Failed to load quizzes:', err))
-      .finally(() => setIsLoadingList(false));
+        if (attempt < 2) await new Promise(r => setTimeout(r, 600));
+      } catch (err) {
+        if (attempt < 2) {
+          await new Promise(r => setTimeout(r, 600));
+          continue;
+        }
+        console.warn('Failed to load quizzes list:', err);
+      }
+    }
+    setIsLoadingList(false);
   };
 
   useEffect(() => {
@@ -124,6 +137,9 @@ export default function Quizzes() {
     }
 
     setIsSubmittingQuiz(true);
+    const totalDurationSeconds = (activeQuiz.timeLimitMinutes || 30) * 60;
+    const timeSpentSeconds = Math.max(10, totalDurationSeconds - timeLeft);
+
     try {
       const res = await fetch(`/api/quizzes/${activeQuiz.id}/submit`, {
         method: 'POST',
@@ -134,6 +150,7 @@ export default function Quizzes() {
         body: JSON.stringify({
           score: calculateScore(),
           totalQuestions: activeQuiz.questions.length,
+          timeSpentSeconds,
           answers: userAnswers
         })
       });
@@ -147,7 +164,7 @@ export default function Quizzes() {
           setShowBuyCoinsModal(true);
           return;
         }
-        alert(data.message || 'Failed to submit quiz');
+        setUiNotice(data.message || 'Failed to submit quiz');
         return;
       }
 
@@ -160,9 +177,10 @@ export default function Quizzes() {
           : 'Quiz evaluation complete.'
       );
       setIsSubmitted(true);
+      window.dispatchEvent(new CustomEvent('study-time-updated', { detail: { seconds: timeSpentSeconds } }));
     } catch (err) {
-      console.error('Submit quiz error:', err);
-      alert('Network error submitting quiz.');
+      console.warn('Submit quiz notice:', err);
+      setUiNotice('Network error submitting quiz. Please try again.');
     } finally {
       setIsSubmittingQuiz(false);
     }
@@ -186,35 +204,57 @@ export default function Quizzes() {
 
   const handleStartQuiz = async (quizId: string) => {
     setIsLoadingQuiz(true);
-    try {
-      const res = await fetch(`/api/quizzes/${quizId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        if (data.error === 'NOT_ENROLLED') {
-          setModalMessage(
-            data.message || 'You must register for this course first to access its quizzes. Please visit the Courses section to enroll.'
-          );
-          setShowBuyCoinsModal(true);
-          return;
-        }
-        alert(data.message || 'Failed to start quiz');
-        return;
-      }
+    setUiNotice(null);
+    let quizData: any = null;
+    let quizError: any = null;
 
-      setActiveQuiz(data);
-      setCurrentIndex(0);
-      setUserAnswers({});
-      setIsSubmitted(false);
-      setCoinsDeductionNotice(null);
-      setTimeLeft(30 * 60);
-    } catch (err) {
-      console.error('Error fetching quiz:', err);
-      alert('Network error loading quiz');
-    } finally {
-      setIsLoadingQuiz(false);
+    // Retry fetch up to 2 times on transient network interruptions
+    for (let attempt = 0; attempt <= 2; attempt++) {
+      try {
+        const res = await fetch(`/api/quizzes/${quizId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          quizData = data;
+          quizError = null;
+          break;
+        }
+        quizError = data;
+        if (attempt < 2 && (res.status >= 500 || res.status === 404)) {
+          await new Promise(r => setTimeout(r, 600));
+          continue;
+        }
+        break;
+      } catch (err) {
+        quizError = { message: 'Network connection interrupted. Please try again.' };
+        if (attempt < 2) {
+          await new Promise(r => setTimeout(r, 600));
+          continue;
+        }
+      }
     }
+
+    if (!quizData) {
+      if (quizError?.error === 'NOT_ENROLLED') {
+        setModalMessage(
+          quizError.message || 'You must register for this course first to access its quizzes. Please visit the Courses section to enroll.'
+        );
+        setShowBuyCoinsModal(true);
+      } else {
+        setUiNotice(quizError?.message || 'Unable to load quiz at this moment. Please try again.');
+      }
+      setIsLoadingQuiz(false);
+      return;
+    }
+
+    setActiveQuiz(quizData);
+    setCurrentIndex(0);
+    setUserAnswers({});
+    setIsSubmitted(false);
+    setCoinsDeductionNotice(null);
+    setTimeLeft((quizData.timeLimitMinutes || 30) * 60);
+    setIsLoadingQuiz(false);
   };
 
   const handleSelectOption = (optionKey: string) => {
@@ -265,6 +305,22 @@ export default function Quizzes() {
 
     return (
       <div className="space-y-6 max-w-4xl mx-auto">
+        {uiNotice && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-center justify-between gap-3 text-sm text-red-800 shadow-xs">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-red-600 shrink-0" />
+              <span>{uiNotice}</span>
+            </div>
+            <button 
+              type="button"
+              onClick={() => setUiNotice(null)}
+              className="text-red-500 hover:text-red-800 p-1 cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
         {/* Active Quiz Header */}
         <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
@@ -456,7 +512,13 @@ export default function Quizzes() {
                 </div>
               </div>
 
-              <div className="flex justify-center gap-3">
+              <div className="flex flex-wrap justify-center gap-3">
+                <Link
+                  to="/dashboard/results"
+                  className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold transition-colors flex items-center gap-1.5 shadow-xs"
+                >
+                  <Award className="h-4 w-4" /> View in Results
+                </Link>
                 <button
                   onClick={() => {
                     setUserAnswers({});
@@ -557,6 +619,22 @@ export default function Quizzes() {
   // 2. QUIZ CATALOG VIEW
   return (
     <div className="space-y-6">
+      {uiNotice && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-center justify-between gap-3 text-sm text-red-800 shadow-xs">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-red-600 shrink-0" />
+            <span>{uiNotice}</span>
+          </div>
+          <button 
+            type="button"
+            onClick={() => setUiNotice(null)}
+            className="text-red-500 hover:text-red-800 p-1 cursor-pointer"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-zinc-900">Clinical Quiz Engine</h2>

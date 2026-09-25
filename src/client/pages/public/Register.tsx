@@ -64,6 +64,10 @@ export default function Register() {
         result = null;
       }
 
+      if (!result || typeof result !== 'object') {
+        throw new Error('Registration service is currently unreachable. Please verify server connectivity or try again.');
+      }
+
       if (!response.ok) {
         const errorMsg = result?.error || (
           response.status === 403
@@ -79,7 +83,7 @@ export default function Register() {
         setAuth(result.token, result.user, result.studentData);
       }
 
-      setStudentId(result.studentId);
+      setStudentId(result.studentId || 'MCA-STUDENT');
       setSuccess(true);
       
     } catch (err: any) {

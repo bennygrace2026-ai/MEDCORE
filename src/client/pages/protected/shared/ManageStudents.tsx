@@ -100,7 +100,7 @@ export default function ManageStudents() {
         }
       }
     } catch (error) {
-      console.error('Failed to fetch students:', error);
+      console.warn('Students data temporarily unavailable:', error);
     } finally {
       setIsLoading(false);
     }

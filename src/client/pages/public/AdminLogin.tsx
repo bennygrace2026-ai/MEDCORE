@@ -72,8 +72,16 @@ export default function AdminLogin() {
         result = null;
       }
 
+      if (!result || typeof result !== 'object') {
+        throw new Error('Administrator authentication service is currently unreachable.');
+      }
+
       if (!response.ok) {
         throw new Error(result?.error || 'Invalid administrator credentials. Please check your email and password.');
+      }
+
+      if (!result.user || !result.token) {
+        throw new Error('Authentication server returned an unexpected response.');
       }
 
       if (result.user.role !== 'ADMIN' && result.user.role !== 'SUPER_ADMIN') {

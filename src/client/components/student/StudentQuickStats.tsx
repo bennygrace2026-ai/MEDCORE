@@ -26,6 +26,11 @@ export interface QuickStatsData {
   totalQuizzesCount: number;
   totalHoursSpentLearning: number;
   totalMinutesSpentLearning: number;
+  readingMinutes?: number;
+  readingHours?: number;
+  quizMinutes?: number;
+  quizHours?: number;
+  readingSessionsCount?: number;
   streak: number;
   averageScore: number;
   recentActivity: Array<{
@@ -48,10 +53,52 @@ interface StudentQuickStatsProps {
   onStatsLoaded?: (data: QuickStatsData) => void;
 }
 
+// Resilient fetch helper with retry
+async function fetchStatsWithRetry(url: string, token: string, retries = 2, delayMs = 600): Promise<QuickStatsData | null> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        cache: 'no-store'
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+      if (attempt < retries && (res.status >= 500 || res.status === 404)) {
+        await new Promise((r) => setTimeout(r, delayMs));
+        continue;
+      }
+      return null;
+    } catch (err) {
+      if (attempt < retries) {
+        await new Promise((r) => setTimeout(r, delayMs));
+        continue;
+      }
+      return null;
+    }
+  }
+  return null;
+}
+
 export default function StudentQuickStats({ onStatsLoaded }: StudentQuickStatsProps) {
   const { token, studentData } = useAuthStore();
-  const [stats, setStats] = useState<QuickStatsData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<QuickStatsData | null>(() => {
+    try {
+      const cached = localStorage.getItem('medcore_student_quick_stats');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [loading, setLoading] = useState(() => {
+    try {
+      return !localStorage.getItem('medcore_student_quick_stats');
+    } catch {
+      return true;
+    }
+  });
   const [refreshing, setRefreshing] = useState(false);
   const [showLogModal, setShowLogModal] = useState(false);
   const [logMinutes, setLogMinutes] = useState(30);
@@ -63,20 +110,18 @@ export default function StudentQuickStats({ onStatsLoaded }: StudentQuickStatsPr
     if (!token) return;
     if (isRefresh) setRefreshing(true);
     try {
-      const res = await fetch('/api/users/student-dashboard-stats', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (res.ok) {
-        const data = await res.json();
+      const data = await fetchStatsWithRetry('/api/users/student-dashboard-stats', token, 2, 700);
+      if (data) {
         setStats(data);
+        try {
+          localStorage.setItem('medcore_student_quick_stats', JSON.stringify(data));
+        } catch {}
         if (onStatsLoaded) {
           onStatsLoaded(data);
         }
       }
     } catch (err) {
-      console.error('Failed to load student dashboard stats:', err);
+      console.warn('Student dashboard stats temporarily unavailable, using cached stats:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -85,6 +130,15 @@ export default function StudentQuickStats({ onStatsLoaded }: StudentQuickStatsPr
 
   useEffect(() => {
     fetchStats();
+  }, [fetchStats]);
+
+  // Automatically refresh stats whenever a PDF/note is closed or a quiz is submitted
+  useEffect(() => {
+    const handleStudyTimeUpdated = () => {
+      fetchStats(true);
+    };
+    window.addEventListener('study-time-updated', handleStudyTimeUpdated);
+    return () => window.removeEventListener('study-time-updated', handleStudyTimeUpdated);
   }, [fetchStats]);
 
   const handleLogStudy = async (e: React.FormEvent) => {
@@ -136,6 +190,10 @@ export default function StudentQuickStats({ onStatsLoaded }: StudentQuickStatsPr
   const completedQuizzes = stats?.completedQuizzesCount ?? 0;
   const totalHours = stats?.totalHoursSpentLearning ?? 0;
   const totalMinutes = stats?.totalMinutesSpentLearning ?? 0;
+  const readingMinutes = stats?.readingMinutes ?? 0;
+  const readingHours = stats?.readingHours ?? 0;
+  const quizMinutes = stats?.quizMinutes ?? 0;
+  const quizHours = stats?.quizHours ?? 0;
 
   return (
     <div className="space-y-4">
@@ -157,7 +215,7 @@ export default function StudentQuickStats({ onStatsLoaded }: StudentQuickStatsPr
       )}
 
       {/* Widget Section Container */}
-      <div className="bg-white rounded-xl border border-zinc-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
         {/* Header bar of Quick Stats */}
         <div className="px-6 py-4 border-b border-zinc-100 flex flex-wrap items-center justify-between gap-3 bg-zinc-50/50">
           <div>
@@ -197,13 +255,13 @@ export default function StudentQuickStats({ onStatsLoaded }: StudentQuickStatsPr
         {/* 3 Core Highlight Cards: Completed Courses | Pending Quizzes | Total Hours Spent Learning */}
         <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* 1. Completed Courses */}
-          <div className="p-5 rounded-xl border border-zinc-100 bg-linear-to-b from-white to-zinc-50/60 shadow-2xs hover:border-zinc-200 transition-all flex flex-col justify-between">
+          <div className="p-5 rounded-2xl border border-zinc-200/80 bg-linear-to-b from-white to-zinc-50/70 shadow-2xs hover:border-zinc-300 transition-all flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
                   Course Progress
                 </span>
-                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100">
                   <CheckCircle2 className="h-4 w-4" />
                 </div>
               </div>
@@ -249,13 +307,13 @@ export default function StudentQuickStats({ onStatsLoaded }: StudentQuickStatsPr
           </div>
 
           {/* 2. Pending Quizzes */}
-          <div className="p-5 rounded-xl border border-zinc-100 bg-linear-to-b from-white to-zinc-50/60 shadow-2xs hover:border-zinc-200 transition-all flex flex-col justify-between">
+          <div className="p-5 rounded-2xl border border-zinc-200/80 bg-linear-to-b from-white to-zinc-50/70 shadow-2xs hover:border-zinc-300 transition-all flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
                   Assessments
                 </span>
-                <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
+                <div className="p-2 bg-amber-50 text-amber-600 rounded-xl border border-amber-100">
                   <HelpCircle className="h-4 w-4" />
                 </div>
               </div>
@@ -269,11 +327,11 @@ export default function StudentQuickStats({ onStatsLoaded }: StudentQuickStatsPr
                 </span>
               </div>
 
-              <div className="mt-3 flex items-center gap-2 text-xs text-zinc-600 bg-amber-50/60 border border-amber-100/80 rounded-lg p-2.5">
+              <div className="mt-3 flex items-center gap-2 text-xs text-zinc-600 bg-amber-50/70 border border-amber-100 rounded-xl p-2.5">
                 <FileQuestion className="h-4 w-4 text-amber-600 shrink-0" />
                 <span className="truncate">
                   {completedQuizzes > 0
-                    ? `${completedQuizzes} completed · ${pendingQuizzes} awaiting your evaluation`
+                    ? `${completedQuizzes} completed · ${pendingQuizzes} awaiting evaluation`
                     : pendingQuizzes > 0 
                       ? `${pendingQuizzes} timed questions ready for testing`
                       : 'All available quizzes currently up to date'}
@@ -298,48 +356,79 @@ export default function StudentQuickStats({ onStatsLoaded }: StudentQuickStatsPr
             </div>
           </div>
 
-          {/* 3. Total Hours Spent Learning */}
-          <div className="p-5 rounded-xl border border-zinc-100 bg-linear-to-b from-white to-zinc-50/60 shadow-2xs hover:border-zinc-200 transition-all flex flex-col justify-between">
+          {/* 3. Total Hours Spent Learning (Base on PDF/Notes Open-to-Close + Quizzes Taken) */}
+          <div className="p-5 rounded-2xl border-2 border-blue-400/40 bg-linear-to-b from-blue-50/60 via-white to-indigo-50/40 shadow-xs hover:border-blue-500/60 hover:shadow-md transition-all duration-200 flex flex-col justify-between group relative overflow-hidden">
+            {/* Top accent glow line */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-blue-500 via-indigo-500 to-purple-500" />
+
             <div>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-                  Learning Time
-                </span>
-                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-blue-950 uppercase tracking-wider">
+                    Learning Time
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200/80 shadow-2xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse"></span>
+                    PDF & Quiz Sync
+                  </span>
+                </div>
+                <div className="p-2 bg-blue-100/70 text-blue-700 rounded-xl border border-blue-200/60 group-hover:scale-105 transition-transform">
                   <Clock className="h-4 w-4" />
                 </div>
               </div>
 
               <div className="flex items-baseline gap-2 mb-1">
-                <span className="text-3xl font-extrabold text-zinc-900 tabular-nums">
+                <span className="text-3xl font-black text-zinc-900 tabular-nums tracking-tight">
                   {loading ? '—' : totalHours}
                 </span>
-                <span className="text-xs text-zinc-500 font-medium">
-                  total hours spent learning
+                <span className="text-xs text-zinc-600 font-semibold">
+                  hrs ({loading ? '—' : totalMinutes} mins total)
                 </span>
               </div>
 
-              <div className="mt-3 flex items-center justify-between text-xs text-zinc-600 bg-blue-50/60 border border-blue-100/80 rounded-lg p-2.5">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-blue-600 shrink-0" />
-                  <span className="tabular-nums font-medium">{totalMinutes} active minutes</span>
+              {/* Exact Breakdown: PDF/Notes Open-to-Close + Quizzes Taken */}
+              <div className="mt-3 space-y-1.5 bg-white/95 border border-blue-100/90 rounded-xl p-2.5 text-xs text-zinc-700 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <BookOpen className="h-3.5 w-3.5 text-purple-600 shrink-0" />
+                    <span className="truncate font-semibold text-zinc-800">PDFs & Notes (Open/Close):</span>
+                  </div>
+                  <span className="font-bold text-purple-700 tabular-nums shrink-0 ml-1 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100">
+                    {loading ? '—' : `${readingMinutes}m`} ({readingHours}h)
+                  </span>
                 </div>
-                <span className="text-blue-700 font-semibold text-[11px]">Tracked</span>
+
+                <div className="flex items-center justify-between border-t border-zinc-100 pt-1.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <FileQuestion className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                    <span className="truncate font-semibold text-zinc-800">Clinical Quizzes Taken:</span>
+                  </div>
+                  <span className="font-bold text-amber-700 tabular-nums shrink-0 ml-1 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">
+                    {loading ? '—' : `${quizMinutes}m`} ({quizHours}h)
+                  </span>
+                </div>
               </div>
 
-              <p className="text-xs text-zinc-500 mt-3 leading-relaxed">
-                Accumulated across lectures, interactive quiz simulations, and logged revision sessions.
+              <p className="text-[11px] text-zinc-600 mt-2.5 leading-relaxed font-medium">
+                Tracked automatically from the exact duration course PDFs or lecture notes remain open, plus time answering clinical quizzes.
               </p>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between">
+            <div className="mt-4 pt-3 border-t border-zinc-100/90 flex items-center justify-between">
+              <Link 
+                to="/dashboard/my-courses"
+                className="text-xs font-bold text-blue-700 hover:text-blue-800 inline-flex items-center gap-1 group/btn"
+              >
+                <span>Read Notes & PDFs</span>
+                <ArrowRight className="h-3 w-3 transition-transform group-hover/btn:translate-x-0.5" />
+              </Link>
+
               <button
                 type="button"
                 onClick={() => setShowLogModal(true)}
-                className="text-xs font-semibold text-blue-700 hover:text-blue-800 inline-flex items-center gap-1 group cursor-pointer"
+                className="text-[11px] font-semibold text-zinc-500 hover:text-zinc-800 transition-colors cursor-pointer"
               >
-                <span>+ Log Study Session</span>
-                <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+                + Custom Log
               </button>
             </div>
           </div>

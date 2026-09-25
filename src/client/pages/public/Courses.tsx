@@ -25,7 +25,7 @@ export default function Courses() {
           setCourses(data);
         }
       })
-      .catch(err => console.error('Failed to fetch public courses:', err))
+      .catch(err => console.warn('Public courses temporarily unavailable:', err))
       .finally(() => setIsLoading(false));
   }, []);
 

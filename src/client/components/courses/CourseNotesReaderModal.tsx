@@ -55,6 +55,64 @@ export const CourseNotesReaderModal: React.FC<CourseNotesReaderModalProps> = ({
   const [fontSize, setFontSize] = useState<'sm' | 'base' | 'lg'>('base');
   const [readingTheme, setReadingTheme] = useState<'light' | 'sepia' | 'dark'>('light');
 
+  // Track exact open-to-close reading time
+  const openTimeRef = React.useRef<number>(Date.now());
+  const [liveElapsedSeconds, setLiveElapsedSeconds] = useState(0);
+  const activeTabRef = React.useRef(activeTab);
+  activeTabRef.current = activeTab;
+  const courseRef = React.useRef(course);
+  courseRef.current = course;
+  const isLoggedRef = React.useRef(false);
+
+  useEffect(() => {
+    if (isOpen && course) {
+      openTimeRef.current = Date.now();
+      isLoggedRef.current = false;
+      setLiveElapsedSeconds(0);
+      const interval = setInterval(() => {
+        setLiveElapsedSeconds(Math.floor((Date.now() - openTimeRef.current) / 1000));
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [isOpen, course?.id]);
+
+  const logStudySession = React.useCallback(() => {
+    if (isLoggedRef.current) return;
+    const elapsedSeconds = Math.floor((Date.now() - openTimeRef.current) / 1000);
+    // Log if studied for at least 10 seconds
+    if (elapsedSeconds >= 10 && courseRef.current) {
+      isLoggedRef.current = true;
+      const token = localStorage.getItem('token');
+      if (token) {
+        const payload = JSON.stringify({
+          seconds: elapsedSeconds,
+          materialType: activeTabRef.current,
+          activityTitle: `Studied ${activeTabRef.current === 'PDF' ? 'PDF Material' : 'Lecture Note'}: ${courseRef.current.title}`,
+          courseId: courseRef.current.id
+        });
+
+        try {
+          fetch('/api/users/student-log-study', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: payload,
+            keepalive: true
+          }).then(() => {
+            window.dispatchEvent(new CustomEvent('study-time-updated', { detail: { seconds: elapsedSeconds } }));
+          }).catch(() => {});
+        } catch {}
+      }
+    }
+  }, []);
+
+  const handleClose = () => {
+    logStudySession();
+    onClose();
+  };
+
   useEffect(() => {
     if (course) {
       // Default to PDF if note is empty, otherwise NOTES
@@ -70,12 +128,23 @@ export const CourseNotesReaderModal: React.FC<CourseNotesReaderModalProps> = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
-        onClose();
+        handleClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, logStudySession]);
+
+  // Log on page unload if modal was still open
+  useEffect(() => {
+    const handleUnload = () => {
+      if (isOpen) {
+        logStudySession();
+      }
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
+  }, [isOpen, logStudySession]);
 
   if (!isOpen || !course) return null;
 
@@ -253,8 +322,16 @@ export const CourseNotesReaderModal: React.FC<CourseNotesReaderModalProps> = ({
 
           {/* Quick Header Actions */}
           <div className="flex items-center space-x-2">
+            {/* Live Learning Time Counter */}
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-semibold">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <Clock className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Learning: {Math.floor(liveElapsedSeconds / 60)}:{(liveElapsedSeconds % 60).toString().padStart(2, '0')}</span>
+            </div>
+
             <Link
               to={takeQuizUrl}
+              onClick={logStudySession}
               className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
             >
               <BrainCircuit className="h-3.5 w-3.5" />
@@ -272,7 +349,7 @@ export const CourseNotesReaderModal: React.FC<CourseNotesReaderModalProps> = ({
 
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl transition-colors cursor-pointer"
               title="Close Reader"
             >

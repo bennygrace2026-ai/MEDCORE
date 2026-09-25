@@ -68,8 +68,16 @@ export default function Login() {
         result = null;
       }
 
+      if (!result || typeof result !== 'object') {
+        throw new Error('Authentication service is currently unreachable. Please check your network connection or server deployment.');
+      }
+
       if (!response.ok) {
         throw new Error(result?.error || 'Invalid credentials or sign-in failed. Please verify your email and password.');
+      }
+
+      if (!result.user || !result.token) {
+        throw new Error('Authentication server returned an unexpected response.');
       }
 
       setAuth(result.token, result.user, result.studentData);

@@ -75,8 +75,16 @@ export default function SuperAdminLogin() {
         result = null;
       }
 
+      if (!result || typeof result !== 'object') {
+        throw new Error('Super Administrator authentication service is currently unreachable.');
+      }
+
       if (!response.ok) {
         throw new Error(result?.error || 'Invalid Super Administrator credentials. Please check your email and security key.');
+      }
+
+      if (!result.user || !result.token) {
+        throw new Error('Authentication server returned an unexpected response.');
       }
 
       if (result.user.role !== 'SUPER_ADMIN') {

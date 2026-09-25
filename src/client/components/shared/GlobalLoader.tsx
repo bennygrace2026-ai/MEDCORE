@@ -1,66 +1,71 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { useSettingsStore } from '../../store/settingsStore';
 import GlobalBrandLogo from './GlobalBrandLogo';
 
-export default function GlobalLoader() {
-  const { frontendSettings, settings } = useSettingsStore();
-  const primaryColor = frontendSettings?.primaryColor || 'purple';
+interface GlobalLoaderProps {
+  progress: number;
+  statusText: string;
+}
 
-  const colorMap: Record<string, string> = {
-    purple: 'bg-purple-600',
-    blue: 'bg-blue-600',
-    indigo: 'bg-indigo-600',
-    emerald: 'bg-emerald-600',
-    rose: 'bg-rose-600',
-  };
-
-  const barColor = colorMap[primaryColor] || 'bg-purple-600';
-
+export default function GlobalLoader({ progress }: GlobalLoaderProps) {
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white">
-      <div className="relative flex flex-col items-center">
-        {/* Logo Container */}
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white">
+      {/* Dynamic Background Light Radial Glow */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-red-50/20 via-white to-white pointer-events-none" />
+
+      <div className="relative flex items-center justify-center h-48 w-48 z-10">
+        {/* Glowing Circle Loading Ring Around Logo */}
+        <div className="absolute inset-0 rounded-full border-2 border-zinc-100" />
+        
+        {/* Active Animated Spinner Overlay */}
+        <svg 
+          className="absolute inset-0 w-full h-full animate-spin text-red-600" 
+          viewBox="0 0 100 100"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <circle
+            cx="50"
+            cy="50"
+            r="46"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeDasharray="80 200"
+            strokeLinecap="round"
+            fill="transparent"
+          />
+        </svg>
+
+        {/* Pulsing Backlit Glow to Match the Pop In/Out Animation */}
+        <motion.div 
+          className="absolute h-32 w-32 rounded-full bg-red-500/5 blur-xl pointer-events-none"
+          animate={{
+            scale: [0.85, 1.15, 0.85],
+            opacity: [0.4, 0.8, 0.4]
+          }}
+          transition={{
+            duration: 2.0,
+            ease: "easeInOut",
+            repeat: Infinity
+          }}
+        />
+
+        {/* Logo Container with Pop In and Out Animation */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-          className="mb-8 flex flex-col items-center"
+          className="relative h-28 w-28 flex items-center justify-center bg-zinc-50/80 border border-zinc-100 rounded-full p-5 shadow-lg backdrop-blur-xs"
+          animate={{
+            scale: [0.92, 1.08, 0.92],
+          }}
+          transition={{
+            duration: 2.0,
+            ease: "easeInOut",
+            repeat: Infinity
+          }}
         >
           <GlobalBrandLogo 
-            className="h-20 w-20 max-w-[140px] max-h-[80px]" 
-            imageClassName="max-h-full max-w-full object-contain"
+            className="h-16 w-16 object-contain" 
+            imageClassName="h-full w-full object-contain" 
           />
-          <h1 className="mt-3 text-xl font-black tracking-tighter text-zinc-900 uppercase italic">
-            {settings?.siteSubtitle || 'UNI9JA MEDIA'}
-          </h1>
-          <p className="text-[10px] font-bold text-amber-500 tracking-[0.2em] uppercase mt-0.5">
-            {settings?.siteTitle || 'MEDCORE ACADEMY'}
-          </p>
         </motion.div>
-
-        {/* Loading Bar Track */}
-        <div className="w-64 h-1.5 bg-zinc-100 rounded-full overflow-hidden relative">
-          {/* Active Loading Bar */}
-          <motion.div
-            className={`absolute inset-y-0 left-0 ${barColor}`}
-            initial={{ width: "0%" }}
-            animate={{ width: "100%" }}
-            transition={{ 
-              duration: 0.55, 
-              ease: "easeInOut"
-            }}
-          />
-        </div>
-        
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.1 }}
-          className="mt-5 text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em]"
-        >
-          Synchronizing Platform...
-        </motion.p>
       </div>
     </div>
   );

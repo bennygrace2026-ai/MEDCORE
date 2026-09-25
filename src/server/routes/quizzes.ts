@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc, and, inArray } from 'drizzle-orm';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
-import { db } from '../../db/index.js';
+import { db, dbInitialization } from '../../db/index.js';
 import { topics, quizzes, questions, courses, students, enrollments, systemSettings, quizAttempts, studentStudySessions } from '../../db/schema.js';
 import { authenticateToken, AuthRequest } from '../middleware/auth.js';
 
@@ -12,19 +12,130 @@ const router = Router();
 
 async function getQuizCoinCost(): Promise<number> {
   try {
+    await dbInitialization;
     const settings = await db.select().from(systemSettings).where(eq(systemSettings.id, 'global_settings')).limit(1);
     if (settings.length > 0 && typeof settings[0].quizCoinCost === 'number') {
       return settings[0].quizCoinCost;
     }
   } catch (err) {
-    console.error('Error reading quizCoinCost from settings:', err);
+    console.warn('Error reading quizCoinCost from settings:', err);
   }
   return 30;
 }
 
+// Get student's captured quiz results & performance history
+router.get('/my-results', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    await dbInitialization;
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Fetch all attempts for this student
+    const attempts = await db
+      .select()
+      .from(quizAttempts)
+      .where(eq(quizAttempts.userId, userId))
+      .orderBy(desc(quizAttempts.completedAt));
+
+    // Gather unique quiz IDs
+    const quizIds = [...new Set(attempts.map(a => a.quizId))];
+    const quizMap = new Map();
+    const topicMap = new Map();
+    const courseMap = new Map();
+
+    if (quizIds.length > 0) {
+      const quizRecords = await db.select().from(quizzes).where(inArray(quizzes.id, quizIds));
+      quizRecords.forEach(q => quizMap.set(q.id, q));
+
+      const topicIds = [...new Set(quizRecords.map(q => q.topicId).filter(Boolean))];
+      if (topicIds.length > 0) {
+        const topicRecords = await db.select().from(topics).where(inArray(topics.id, topicIds));
+        topicRecords.forEach(t => topicMap.set(t.id, t));
+
+        const courseIds = [...new Set(topicRecords.map(t => t.courseId).filter(Boolean))];
+        if (courseIds.length > 0) {
+          const courseRecords = await db.select().from(courses).where(inArray(courses.id, courseIds));
+          courseRecords.forEach(c => courseMap.set(c.id, c));
+        }
+      }
+    }
+
+    let totalScore = 0;
+    let totalMaxScore = 0;
+    let totalSeconds = 0;
+    let passedCount = 0;
+    let distinctionCount = 0;
+
+    const enrichedAttempts = attempts.map(attempt => {
+      const quiz = quizMap.get(attempt.quizId);
+      const topic = quiz ? topicMap.get(quiz.topicId) : null;
+      const course = topic ? courseMap.get(topic.courseId) : null;
+
+      const maxScore = attempt.maxScore > 0 ? attempt.maxScore : 10;
+      const score = Math.min(attempt.score, maxScore);
+      const percentage = Math.round((score / maxScore) * 100);
+      const timeSpentSeconds = attempt.timeSpentSeconds || 0;
+
+      totalScore += score;
+      totalMaxScore += maxScore;
+      totalSeconds += timeSpentSeconds;
+
+      if (percentage >= 50) passedCount++;
+      if (percentage >= 75) distinctionCount++;
+
+      let grade = 'F';
+      if (percentage >= 80) grade = 'A';
+      else if (percentage >= 70) grade = 'B';
+      else if (percentage >= 60) grade = 'C';
+      else if (percentage >= 50) grade = 'D';
+
+      return {
+        id: attempt.id,
+        quizId: attempt.quizId,
+        quizTitle: quiz?.title || 'Clinical Mock Quiz',
+        topicTitle: topic?.title || 'General Topics',
+        courseId: course?.id || null,
+        courseTitle: course?.title || 'Medical Sciences',
+        courseCode: course?.code || 'MED',
+        score,
+        maxScore,
+        percentage,
+        grade,
+        passed: percentage >= 50,
+        timeSpentSeconds,
+        completedAt: attempt.completedAt
+      };
+    });
+
+    const totalAttempts = attempts.length;
+    const averagePercentage = totalMaxScore > 0 ? Math.round((totalScore / totalMaxScore) * 100) : 0;
+    const highestPercentage = enrichedAttempts.length > 0 ? Math.max(...enrichedAttempts.map(a => a.percentage)) : 0;
+    const totalMinutes = Math.round(totalSeconds / 60);
+
+    res.json({
+      success: true,
+      stats: {
+        totalAttempts,
+        averagePercentage,
+        highestPercentage,
+        passedCount,
+        distinctionCount,
+        totalMinutes
+      },
+      results: enrichedAttempts
+    });
+  } catch (error) {
+    console.error('Fetch my quiz results error:', error);
+    res.status(500).json({ error: 'Server error fetching quiz results' });
+  }
+});
+
 // Get all quizzes with course & topic metadata and question count
 router.get('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
+    await dbInitialization;
     const userId = req.user?.id;
     const role = req.user?.role;
     const allQuizzes = await db.select().from(quizzes).orderBy(desc(quizzes.createdAt));
@@ -80,6 +191,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 // Get single quiz with its questions (enforces enrollment & 10-question trial limit)
 router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
   try {
+    await dbInitialization;
     const userId = req.user?.id;
     const role = req.user?.role;
     const id = String(req.params.id);

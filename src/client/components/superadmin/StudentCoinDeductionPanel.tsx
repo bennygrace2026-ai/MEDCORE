@@ -54,7 +54,7 @@ export default function StudentCoinDeductionPanel() {
         }
       }
     } catch (err) {
-      console.error('Failed to fetch students:', err);
+      console.warn('Students data temporarily unavailable:', err);
     } finally {
       setIsLoading(false);
     }

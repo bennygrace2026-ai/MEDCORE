@@ -390,7 +390,7 @@ export default function AdminQuizEngine() {
         }
       }
     } catch (err) {
-      console.error('Failed to fetch courses', err);
+      console.warn('Courses temporarily unavailable:', err);
     }
   };
 
@@ -406,7 +406,7 @@ export default function AdminQuizEngine() {
         setQuizzesList(data);
       }
     } catch (err) {
-      console.error('Failed to fetch quizzes', err);
+      console.warn('Quizzes temporarily unavailable:', err);
     } finally {
       setIsLoadingQuizzes(false);
     }
@@ -625,7 +625,7 @@ export default function AdminQuizEngine() {
         });
       }
     } catch (err) {
-      console.error('Error fetching quiz details', err);
+      console.warn('Unable to fetch quiz details:', err);
       setSelectedQuizPreview(prev => prev ? { ...prev, isLoading: false } : null);
     }
   };

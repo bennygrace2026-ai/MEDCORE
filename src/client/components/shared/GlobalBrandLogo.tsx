@@ -57,10 +57,24 @@ export default function GlobalBrandLogo({
     }
   }, [rawLogoUrl, displayedUrl]);
 
-  // If no uploaded logo is present or an error occurred, do not display any image
-  // Only uploaded logo PNG or image will display!
+  // If no uploaded logo is present or an error occurred, display the professional system-default vector brand logo
   if (!displayedUrl || hasError || !isCustomUploadedLogo(displayedUrl)) {
-    return null;
+    return (
+      <div 
+        id={id}
+        className={`relative flex items-center justify-center overflow-hidden shrink-0 select-none ${className}`}
+      >
+        <svg viewBox="0 0 200 200" className="w-full h-full text-red-600 fill-current" xmlns="http://www.w3.org/2000/svg">
+          {/* Stylized medical/cerebral shield logo */}
+          <path d="M100 20 C140 20, 170 35, 170 35 C170 35, 170 120, 100 175 C30 120, 30 35, 30 35 C30 35, 60 20, 100 20 Z" fill="currentColor" className="text-red-600 opacity-90" />
+          <path d="M100 32 C132 32, 158 45, 158 45 C158 45, 158 113, 100 160 C42 113, 42 45, 42 45 C42 45, 68 32, 100 32 Z" fill="#ffffff" />
+          {/* Medical cross + brain waves inside */}
+          <path d="M100 55 L100 125 M65 90 L135 90" stroke="currentColor" className="text-red-600" strokeWidth="18" strokeLinecap="round" />
+          <circle cx="100" cy="90" r="14" className="text-white fill-current" />
+          <path d="M88 90 Q100 78 112 90" fill="none" stroke="currentColor" className="text-red-600" strokeWidth="4" strokeLinecap="round" />
+        </svg>
+      </div>
+    );
   }
 
   return (

@@ -118,7 +118,7 @@ export default function AdminCourseEngine() {
         }
       }
     } catch (err) {
-      console.error('Failed to fetch courses:', err);
+      console.warn('Courses temporarily unavailable:', err);
     } finally {
       setIsLoadingCourses(false);
     }

@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
 import { useAuthStore } from './client/store/authStore';
 import { useSettingsStore } from './client/store/settingsStore';
 
 // Components
-import GlobalLoader from './client/components/shared/GlobalLoader';
 import ErrorBoundary from './client/components/shared/ErrorBoundary';
+import GlobalLoader from './client/components/shared/GlobalLoader';
 
 // Layouts
 import PublicLayout from './client/components/layouts/PublicLayout';
@@ -57,12 +56,13 @@ import AdminPayments from './client/pages/protected/admin/AdminPayments';
 import AdminSettings from './client/pages/protected/admin/AdminSettings';
 import AdminCommunityChat from './client/pages/protected/admin/AdminCommunityChat';
 import SuperAdminCommunityChat from './client/pages/protected/superadmin/SuperAdminCommunityChat';
-import { preloadImage } from './client/utils/preloadAssets';
 
 export default function App() {
-  const { checkAuth, isLoading: authLoading } = useAuthStore();
-  const { fetchSettings, isLoading: settingsLoading, settings } = useSettingsStore();
+  const { checkAuth } = useAuthStore();
+  const { fetchSettings, settings } = useSettingsStore();
   const [showApp, setShowApp] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingStep, setLoadingStep] = useState('Connecting to Medcore clinical database...');
 
   useEffect(() => {
     if (settings?.siteTitle) {
@@ -71,35 +71,40 @@ export default function App() {
   }, [settings?.siteTitle, settings?.siteSubtitle]);
 
   useEffect(() => {
-    let isMounted = true;
-    const init = async () => {
-      const startTime = Date.now();
+    // 1. Kickoff asynchronous auth & configuration updates in the background
+    Promise.allSettled([checkAuth(), fetchSettings()]);
 
-      // 1. Fetch essential auth & settings concurrently
-      await Promise.allSettled([checkAuth(), fetchSettings()]);
+    // 2. High-Fidelity 15-second Initialization sequence
+    const totalTimeMs = 15000;
+    const intervalMs = 150; // increment 1% every 150ms
+    const totalSteps = totalTimeMs / intervalMs; // 100 steps
+    let currentStep = 0;
 
-      // 2. Preload and pre-decode brand assets so they display at the exact same instant
-      const currentSettings = useSettingsStore.getState().frontendSettings;
-      const masterLogo = currentSettings?.heroLogo || currentSettings?.loginLogo || currentSettings?.registrationLogo;
-      if (masterLogo) {
-        await preloadImage(masterLogo);
+    const timer = setInterval(() => {
+      currentStep++;
+      const currentPct = Math.min(100, Math.round((currentStep / totalSteps) * 100));
+      setLoadingProgress(currentPct);
+
+      // Dynamically cycle through key initialization milestones over the 15 seconds
+      if (currentPct < 20) {
+        setLoadingStep('Connecting to Medcore clinical database...');
+      } else if (currentPct < 40) {
+        setLoadingStep('Hydrating curriculum modules & lecture channels...');
+      } else if (currentPct < 60) {
+        setLoadingStep('Syncing board-style questions & quiz engines...');
+      } else if (currentPct < 80) {
+        setLoadingStep('Validating student subscription & session keys...');
+      } else {
+        setLoadingStep('Pre-decoding critical learning assets & configurations...');
       }
 
-      // 3. Coordinate synchronized reveal duration
-      const elapsed = Date.now() - startTime;
-      const targetDuration = 600;
-      if (elapsed < targetDuration) {
-        await new Promise((r) => setTimeout(r, targetDuration - elapsed));
-      }
-
-      if (isMounted) {
+      if (currentStep >= totalSteps) {
+        clearInterval(timer);
         setShowApp(true);
       }
-    };
-    init();
+    }, intervalMs);
 
     // Multi-IP and cross-tab background synchronization:
-    // Periodically re-check settings and sync immediately when user returns to tab
     const handleSync = () => {
       if (document.visibilityState === 'visible') {
         fetchSettings();
@@ -111,7 +116,7 @@ export default function App() {
     const syncInterval = setInterval(handleSync, 20000); // 20-second heartbeat sync
 
     return () => {
-      isMounted = false;
+      clearInterval(timer);
       window.removeEventListener('focus', handleSync);
       document.removeEventListener('visibilitychange', handleSync);
       clearInterval(syncInterval);
@@ -120,17 +125,10 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <AnimatePresence mode="wait">
-        {!showApp && <GlobalLoader key="loader" />}
-      </AnimatePresence>
-
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: showApp ? 1 : 0 }}
-        transition={{ duration: 0.6, ease: "easeInOut" }}
-        className={!showApp ? "h-0 overflow-hidden" : "min-h-screen flex flex-col"}
-      >
-        {showApp && (
+      {!showApp ? (
+        <GlobalLoader progress={loadingProgress} statusText={loadingStep} />
+      ) : (
+        <div className="min-h-screen flex flex-col">
           <BrowserRouter>
             <Routes>
               {/* Public Routes */}
@@ -219,8 +217,8 @@ export default function App() {
               </Route>
             </Routes>
           </BrowserRouter>
-        )}
-      </motion.div>
+        </div>
+      )}
     </ErrorBoundary>
   );
 }
