@@ -548,7 +548,7 @@ router.post('/global-logo', upload.single('logo'), async (req: AuthRequest, res)
     let isAuthorized = false;
     if (token) {
       try {
-        const JWT_SECRET = process.env.JWT_SECRET || 'chimuanya2001';
+        const JWT_SECRET = process.env.JWT_SECRET || 'medcore-jwt-secret-key-2026';
         const verified = jwt.verify(token, JWT_SECRET) as any;
         req.user = verified;
         if (

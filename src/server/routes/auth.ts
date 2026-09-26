@@ -268,9 +268,9 @@ router.post('/login', async (req, res) => {
       },
       studentData: studentRecord ? { ...studentRecord, status: user[0].status || studentRecord.status || 'ACTIVE' } : undefined
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Server error during login' });
+    res.status(500).json({ error: error?.message || 'Server error during login. Please try again in a few moments.' });
   }
 });
 

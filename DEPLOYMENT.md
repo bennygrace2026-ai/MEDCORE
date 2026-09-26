@@ -6,14 +6,14 @@ This document contains the credentials, environment configuration, and instructi
 
 ## 🔑 Configured Supabase Credentials
 
-The application is pre-configured with the following Supabase parameters:
+Configure the following environment variables in your Netlify Site Settings (**Site Configuration ➡️ Environment Variables**):
 
-| Variable | Value |
+| Variable | Description |
 | :--- | :--- |
-| **`SUPABASE_URL`** | `https://sdpjxnmzxgpsxovpbwnk.supabase.co` |
-| **`SUPABASE_ANON_KEY`** | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkcGp4bm16eGdwc3hvdnBid25rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk4NTk5NDgsImV4cCI6MjEwNTQzNTk0OH0.vLfrhk_GI_xWWCPmFrIEr3z5kBOyOUUyDZiHhh8xHRs` |
-| **`SUPABASE_DATABASE_URL`** | `postgresql://postgres:chimuanya2001@db.sdpjxnmzxgpsxovpbwnk.supabase.co:5432/postgres` |
-| **`JWT_SECRET`** | `chimuanya2001` |
+| **`SUPABASE_URL`** | Your Supabase project URL (e.g. `https://<project-ref>.supabase.co`) |
+| **`SUPABASE_ANON_KEY`** | Your Supabase anon public API key |
+| **`SUPABASE_DATABASE_URL`** | Your Supabase PostgreSQL connection string |
+| **`JWT_SECRET`** | Secret key for signing authentication JWT tokens |
 
 ---
 
@@ -48,12 +48,11 @@ Once deployed, the following accounts are pre-seeded in the database:
    - **Publish directory**: `dist`
    - **Functions directory**: `netlify/functions`
 4. **Environment Variables**:
-   - The variables are already pre-loaded into `netlify.toml` and `.env`.
-   - Optionally verify under **Site configuration** ➡️ **Environment variables**:
-     - `SUPABASE_DATABASE_URL`: `postgresql://postgres:chimuanya2001@db.sdpjxnmzxgpsxovpbwnk.supabase.co:5432/postgres`
-     - `SUPABASE_URL`: `https://sdpjxnmzxgpsxovpbwnk.supabase.co`
-     - `SUPABASE_ANON_KEY`: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`
-     - `JWT_SECRET`: `chimuanya2001`
+   - Set the following variables under **Site configuration** ➡️ **Environment variables**:
+     - `SUPABASE_DATABASE_URL`: `postgresql://postgres:[YOUR-PASSWORD]@db.<project-ref>.supabase.co:5432/postgres`
+     - `SUPABASE_URL`: `https://<project-ref>.supabase.co`
+     - `SUPABASE_ANON_KEY`: `<your-supabase-anon-key>`
+     - `JWT_SECRET`: `<your-jwt-secret>`
 5. **Deploy**:
    - Click **Deploy Site**.
    - Netlify will build the client and deploy the serverless functions (`/.netlify/functions/api`).

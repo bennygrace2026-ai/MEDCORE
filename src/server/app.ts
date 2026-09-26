@@ -9,6 +9,7 @@ import { settingsRouter } from './routes/settings.js';
 import quizzesRouter from './routes/quizzes.js';
 import { chatRouter } from './routes/chat.js';
 import { contactRouter } from './routes/contact.js';
+import { dbInitialization } from '../db/index.js';
 
 export function createApp() {
   const app = express();
@@ -81,6 +82,18 @@ export function createApp() {
   app.use(cors());
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+  // Ensure database initialization is complete before handling API routes
+  app.use(async (req, res, next) => {
+    if (req.url.startsWith('/api') || req.url.startsWith('/.netlify')) {
+      try {
+        await dbInitialization;
+      } catch (err) {
+        console.warn('[DB Middleware Warning] Error awaiting dbInitialization:', err);
+      }
+    }
+    next();
+  });
 
   // Create unified API router
   const apiRouter = express.Router();
