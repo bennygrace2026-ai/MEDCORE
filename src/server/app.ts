@@ -13,6 +13,48 @@ import { contactRouter } from './routes/contact.js';
 export function createApp() {
   const app = express();
 
+  // Inspect and log incoming environment variables for debugging serverless execution
+  const rawDbUrl = process.env.SUPABASE_DATABASE_URL;
+  let sanitizedDbInfo = 'NOT_SET';
+  if (rawDbUrl) {
+    try {
+      const parsed = new URL(rawDbUrl.replace('postgresql://', 'http://').replace('postgres://', 'http://'));
+      sanitizedDbInfo = JSON.stringify({
+        isSet: true,
+        length: rawDbUrl.length,
+        protocol: parsed.protocol.replace('http:', 'postgresql:'),
+        host: parsed.hostname,
+        port: parsed.port || '5432 (default)',
+        user: parsed.username,
+        hasPasswordPlaceholder: rawDbUrl.includes('[YOUR-PASSWORD]'),
+        hasPassword: !!parsed.password,
+        database: parsed.pathname.replace(/^\//, '')
+      });
+    } catch {
+      sanitizedDbInfo = `MALFORMED_URL (length: ${rawDbUrl.length})`;
+    }
+  }
+
+  console.log(`\n======================================================
+[Netlify Serverless Debug] Environment Variables Inspection
+======================================================
+- NETLIFY: ${process.env.NETLIFY ? 'true' : 'false'}
+- NODE_ENV: ${process.env.NODE_ENV || 'undefined'}
+- SUPABASE_DATABASE_URL: ${sanitizedDbInfo}
+- SUPABASE_URL: ${process.env.SUPABASE_URL ? 'PRESENT (' + process.env.SUPABASE_URL + ')' : 'NOT_SET'}
+- SUPABASE_ANON_KEY: ${process.env.SUPABASE_ANON_KEY ? 'PRESENT (len: ' + process.env.SUPABASE_ANON_KEY.length + ')' : 'NOT_SET'}
+- JWT_SECRET: ${process.env.JWT_SECRET ? 'PRESENT' : 'NOT_SET (using fallback)'}
+- Safe Env Keys: ${Object.keys(process.env).filter(k => !k.toLowerCase().includes('key') && !k.toLowerCase().includes('secret') && !k.toLowerCase().includes('password')).join(', ')}
+======================================================\n`);
+
+  // Log incoming API requests with database URL configuration state
+  app.use((req, res, next) => {
+    if (req.url.startsWith('/api') || req.url.startsWith('/.netlify')) {
+      console.log(`[Netlify Serverless Request] ${req.method} ${req.url} | SUPABASE_DATABASE_URL configured: ${!!process.env.SUPABASE_DATABASE_URL}`);
+    }
+    next();
+  });
+
   // Safely ensure upload directories exist
   try {
     const isServerless = !!(process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT);
@@ -56,6 +98,46 @@ export function createApp() {
       message: 'UNI9JA MEDIA MEDCORE ACADEMY API is running',
       environment: process.env.NODE_ENV || 'development',
       time: new Date().toISOString()
+    });
+  });
+
+  apiRouter.get('/debug/env', (req, res) => {
+    const rawDbUrl = process.env.SUPABASE_DATABASE_URL;
+    let dbDetails: any = { isConfigured: false };
+    if (rawDbUrl) {
+      try {
+        const parsed = new URL(rawDbUrl.replace('postgresql://', 'http://').replace('postgres://', 'http://'));
+        dbDetails = {
+          isConfigured: true,
+          length: rawDbUrl.length,
+          protocol: parsed.protocol.replace('http:', 'postgresql:'),
+          host: parsed.hostname,
+          port: parsed.port || '5432',
+          username: parsed.username,
+          hasPassword: !!parsed.password,
+          hasPasswordPlaceholder: rawDbUrl.includes('[YOUR-PASSWORD]'),
+          database: parsed.pathname.replace(/^\//, '')
+        };
+      } catch (err: any) {
+        dbDetails = { isConfigured: true, error: err.message };
+      }
+    }
+
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      isServerless: !!(process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT),
+      netlify: !!process.env.NETLIFY,
+      nodeEnv: process.env.NODE_ENV || 'development',
+      supabaseDatabaseUrl: dbDetails,
+      supabaseUrl: process.env.SUPABASE_URL || null,
+      hasSupabaseAnonKey: !!process.env.SUPABASE_ANON_KEY,
+      hasJwtSecret: !!process.env.JWT_SECRET,
+      safeEnvironmentKeys: Object.keys(process.env).filter(k => 
+        !k.toLowerCase().includes('key') && 
+        !k.toLowerCase().includes('secret') && 
+        !k.toLowerCase().includes('password')
+      )
     });
   });
 

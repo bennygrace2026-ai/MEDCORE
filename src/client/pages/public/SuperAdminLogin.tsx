@@ -80,10 +80,7 @@ export default function SuperAdminLogin() {
       }
 
       if (!response.ok) {
-        if (response.status >= 500) {
-          throw new Error('Server Error: Netlify Serverless Function crashed or timed out. Please configure your SUPABASE_DATABASE_URL environment variable in your Netlify Site Settings.');
-        }
-        throw new Error(result?.error || 'Invalid Super Administrator credentials. Please check your email and security key.');
+        throw new Error(result?.error || (response.status >= 500 ? 'Server error occurred during super admin sign-in. Please try again in a few moments.' : 'Invalid Super Administrator credentials. Please check your email and security key.'));
       }
 
       if (!result.user || !result.token) {

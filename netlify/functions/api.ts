@@ -5,6 +5,10 @@ import { dbInitialization } from '../../src/db/index.js';
 let serverlessHandler: any = null;
 
 export const handler = async (event: any, context: any) => {
+  if (context) {
+    context.callbackWaitsForEmptyEventLoop = false;
+  }
+
   // Wait for database initialization to complete
   try {
     await dbInitialization;
