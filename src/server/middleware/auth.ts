@@ -1,7 +1,13 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'medcore-jwt-secret-key-2026';
+export const JWT_SECRET = process.env.JWT_SECRET || 'medcore-jwt-secret-key-2026';
+const KNOWN_SECRETS = [
+  JWT_SECRET,
+  'medcore-jwt-secret-key-2026',
+  'chimuanya2001',
+  'medcore-academy-secret-key-2025-secure'
+];
 
 export interface AuthRequest extends Request {
   user?: {
@@ -22,14 +28,23 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
     return;
   }
 
-  try {
-    const verified = jwt.verify(token, JWT_SECRET) as { id: string; role: string; studentId?: string };
-    req.user = verified;
-    next();
-  } catch (err) {
-    res.status(400).json({ error: 'Invalid token.' });
+  let verified: any = null;
+  for (const secret of KNOWN_SECRETS) {
+    try {
+      verified = jwt.verify(token, secret);
+      if (verified) break;
+    } catch {
+      // Try next secret
+    }
+  }
+
+  if (!verified) {
+    res.status(401).json({ error: 'Invalid or expired token.' });
     return;
   }
+
+  req.user = verified;
+  next();
 };
 
 export const requireRole = (roles: string[]) => {

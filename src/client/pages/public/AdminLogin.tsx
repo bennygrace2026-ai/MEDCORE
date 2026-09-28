@@ -77,7 +77,8 @@ export default function AdminLogin() {
       }
 
       if (!response.ok) {
-        throw new Error(result?.error || (response.status >= 500 ? 'Server error occurred during admin sign-in. Please try again in a few moments.' : 'Invalid administrator credentials. Please check your email and password.'));
+        const specificMsg = result?.specificError?.message || result?.specificMessage || result?.error;
+        throw new Error(specificMsg || (response.status >= 500 ? 'Server error occurred during admin sign-in. Please try again in a few moments.' : 'Invalid administrator credentials. Please check your email and password.'));
       }
 
       if (!result.user || !result.token) {

@@ -32,19 +32,17 @@ export default function Home() {
         </div>
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-          {brandLogo && (
-            <div className="mb-7 flex justify-center">
-              <div className="p-2 sm:p-2.5 bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-zinc-200/80 ring-1 ring-black/5 hover:scale-105 transition-transform duration-300">
-                <GlobalBrandLogo 
-                  id="hero-centerpiece-logo"
-                  imgId="hero-centerpiece-logo-img"
-                  className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl p-1 bg-white"
-                  imageClassName="w-full h-full object-contain"
-                  variant="public"
-                />
-              </div>
+          <div className="mb-7 flex justify-center">
+            <div className="p-2 sm:p-2.5 bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-zinc-200/80 ring-1 ring-black/5 hover:scale-105 transition-transform duration-300">
+              <GlobalBrandLogo 
+                id="hero-centerpiece-logo"
+                imgId="hero-centerpiece-logo-img"
+                className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl p-1 bg-white"
+                imageClassName="w-full h-full object-contain filter drop-shadow-sm select-none"
+                variant="public"
+              />
             </div>
-          )}
+          </div>
           
           <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-red-50 text-red-600 text-sm font-medium mb-8">
             <span className="flex h-2 w-2 rounded-full bg-red-600"></span>

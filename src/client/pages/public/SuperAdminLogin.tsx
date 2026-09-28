@@ -80,7 +80,8 @@ export default function SuperAdminLogin() {
       }
 
       if (!response.ok) {
-        throw new Error(result?.error || (response.status >= 500 ? 'Server error occurred during super admin sign-in. Please try again in a few moments.' : 'Invalid Super Administrator credentials. Please check your email and security key.'));
+        const specificMsg = result?.specificError?.message || result?.specificMessage || result?.error;
+        throw new Error(specificMsg || (response.status >= 500 ? 'Server error occurred during super admin sign-in. Please try again in a few moments.' : 'Invalid Super Administrator credentials. Please check your email and security key.'));
       }
 
       if (!result.user || !result.token) {

@@ -3,8 +3,8 @@
  * Guaranteed to be available offline, during reloads, and across all pages and IP addresses with zero latency.
  */
 
-// Default brand logo is null: only uploaded logo PNG or image will display
-export const DEFAULT_BRAND_LOGO: string | null = null;
+// Default brand logo: guaranteed fallback asset available on all devices
+export const DEFAULT_BRAND_LOGO: string = '/assets/brand/medcore-logo.png';
 
 // Static storage key ensuring Super Admin uploaded logos never delete on refresh or reload
 export const SUPER_ADMIN_STATIC_LOGO_KEY = 'medcore_superadmin_uploaded_logo';
@@ -14,9 +14,10 @@ export const SUPER_ADMIN_STATIC_LOGO_KEY = 'medcore_superadmin_uploaded_logo';
  * Accepts:
  * - Base64 Data URIs (data:image/...)
  * - Local upload paths (/uploads/logos/...)
+ * - Official brand static assets (/assets/brand/...)
  * - Remote URLs (http://, https://)
  * - Blob URLs (blob:...)
- * Rejects 1x1 transparent dummy pixels, empty/null strings, and deleted system default SVGs.
+ * Rejects 1x1 transparent dummy pixels and empty/null strings.
  */
 export function isValidBrandLogo(url: string | null | undefined): boolean {
   if (!url || typeof url !== 'string') return false;
@@ -28,11 +29,6 @@ export function isValidBrandLogo(url: string | null | undefined): boolean {
     return false;
   }
 
-  // Reject the deleted system default emblem
-  if (trimmed.includes('medcore-logo.svg') || trimmed.includes('/assets/brand/')) {
-    return false;
-  }
-
   // Base64 data URI
   if (trimmed.startsWith('data:image/')) {
     const parts = trimmed.split(',');
@@ -41,7 +37,10 @@ export function isValidBrandLogo(url: string | null | undefined): boolean {
 
   // Standard paths and URLs
   if (
+    trimmed.startsWith('/assets/brand/') ||
     trimmed.startsWith('/uploads/logos/') || 
+    trimmed.startsWith('/logo.png') ||
+    trimmed.startsWith('/favicon.png') ||
     trimmed.startsWith('http://') || 
     trimmed.startsWith('https://') || 
     trimmed.startsWith('blob:')
@@ -53,7 +52,7 @@ export function isValidBrandLogo(url: string | null | undefined): boolean {
 }
 
 /**
- * Checks if a provided logo is a custom Super Admin uploaded asset.
+ * Checks if a provided logo is a custom Super Admin uploaded asset or valid brand logo.
  */
 export function isCustomUploadedLogo(url: string | null | undefined): boolean {
   return isValidBrandLogo(url);
@@ -68,7 +67,7 @@ export function isSuperAdminUploadedLogo(url: string | null | undefined): boolea
 
 /**
  * Static getter for Super Admin uploaded logo from browser storage.
- * Guarantees that only genuine uploaded logos persist, clearing any old default SVGs.
+ * Guarantees that only genuine uploaded logos persist.
  */
 export function getSuperAdminStaticLogo(): string | null {
   try {
@@ -104,10 +103,10 @@ export function setSuperAdminStaticLogo(logo: string | null): void {
 
 /**
  * Resolves brand logo.
- * Returns the uploaded logo URL/data URI if valid, or null if no logo has been uploaded.
- * Only uploaded logo PNG or image will display!
+ * Returns the uploaded logo URL/data URI if valid, or the reliable static fallback logo.
+ * Always resolves to a displayable asset so logos never disappear on any device.
  */
-export function getResolvedBrandLogo(url: string | null | undefined): string | null {
+export function getResolvedBrandLogo(url: string | null | undefined): string {
   if (isValidBrandLogo(url)) {
     return url as string;
   }
@@ -115,7 +114,7 @@ export function getResolvedBrandLogo(url: string | null | undefined): string | n
   if (staticLogo && isValidBrandLogo(staticLogo)) {
     return staticLogo;
   }
-  return null;
+  return DEFAULT_BRAND_LOGO;
 }
 
 /**

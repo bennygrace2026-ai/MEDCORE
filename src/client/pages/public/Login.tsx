@@ -73,7 +73,8 @@ export default function Login() {
       }
 
       if (!response.ok) {
-        throw new Error(result?.error || (response.status >= 500 ? 'Server error occurred during sign-in. Please try again in a few moments.' : 'Invalid credentials or sign-in failed. Please verify your email and password.'));
+        const specificMsg = result?.specificError?.message || result?.specificMessage || result?.error;
+        throw new Error(specificMsg || (response.status >= 500 ? 'Server error occurred during sign-in. Please try again in a few moments.' : 'Invalid credentials or sign-in failed. Please verify your email and password.'));
       }
 
       if (!result.user || !result.token) {

@@ -54,10 +54,24 @@ export default function PendingPaymentsQueue() {
       });
       if (res.ok) {
         const data = await res.json();
-        setRequests(data);
+        setRequests(Array.isArray(data) ? data : []);
+      } else {
+        console.warn('Payment requests response not ok:', res.status);
       }
-    } catch (err) {
-      console.error('Failed to load payment requests:', err);
+    } catch (err: any) {
+      console.warn('Payment requests fetch warning (will retry):', err?.message || err);
+      // Resilient background retry if transient network or server reload
+      setTimeout(async () => {
+        try {
+          const retryRes = await fetch('/api/users/payment-requests', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (retryRes.ok) {
+            const retryData = await retryRes.json();
+            setRequests(Array.isArray(retryData) ? retryData : []);
+          }
+        } catch {}
+      }, 1500);
     } finally {
       setIsLoading(false);
     }

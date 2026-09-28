@@ -75,6 +75,7 @@ function buildCandidateUrls(rawUrl: string): string[] {
 
 let dbInstance: any;
 let sqliteInstance: any;
+let queryClient: any = null;
 let isSchemaInitialized = false;
 
 const initializePostgres = async (sql: any) => {
@@ -294,7 +295,7 @@ const setupDatabase = async () => {
     console.log('[Database Setup] Connection and schema are already initialized in this process container.');
     return;
   }
-  let queryClient: any = null;
+  queryClient = null;
 
   let activeUrl = supabaseDbUrl;
   if (activeUrl && (activeUrl.startsWith('postgres://') || activeUrl.startsWith('postgresql://'))) {
@@ -387,4 +388,14 @@ export const db = new Proxy({}, {
     return dbInstance[prop];
   }
 }) as any;
+
+export const getDatabaseStatus = () => {
+  return {
+    isSchemaInitialized,
+    isPostgres: !!queryClient,
+    isSqlite: !!sqliteInstance,
+    databaseEngine: queryClient ? 'PostgreSQL (Supabase Pooler)' : (sqliteInstance ? 'SQLite' : 'Not Connected'),
+    activeUrlMasked: supabaseDbUrl ? supabaseDbUrl.replace(/:[^:@]+@/, ':****@') : 'NONE'
+  };
+};
 

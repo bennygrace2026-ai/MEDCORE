@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LucideIcon } from 'lucide-react';
 import { useSettingsStore } from '../../store/settingsStore';
 import { preloadImage } from '../../utils/preloadAssets';
-import { getResolvedBrandLogo, isCustomUploadedLogo } from '../../constants/brandAssets';
+import { getResolvedBrandLogo, DEFAULT_BRAND_LOGO } from '../../constants/brandAssets';
 
 interface GlobalBrandLogoProps {
   id?: string;
@@ -24,59 +24,53 @@ export default function GlobalBrandLogo({
 }: GlobalBrandLogoProps) {
   const { frontendSettings, settings } = useSettingsStore();
   
-  // Prefer heroLogo as the unified master logo, with fallbacks to registration and login logos
+  // Prefer heroLogo as the unified master logo, with fallbacks to registration, login, and static default
   const rawLogoUrl = frontendSettings?.heroLogo || frontendSettings?.loginLogo || frontendSettings?.registrationLogo;
-  const initialResolved = getResolvedBrandLogo(rawLogoUrl);
+  const initialResolved = getResolvedBrandLogo(rawLogoUrl) || DEFAULT_BRAND_LOGO;
   
-  const [displayedUrl, setDisplayedUrl] = useState<string | null>(initialResolved);
-  const [hasError, setHasError] = useState(false);
+  const [displayedUrl, setDisplayedUrl] = useState<string>(initialResolved);
+  const [loadFailed, setLoadFailed] = useState(false);
 
-  // When global state logo changes, preload and update atomically
+  // When global state logo changes, update displayed URL and preload
   useEffect(() => {
-    const targetUrl = getResolvedBrandLogo(rawLogoUrl);
-    setHasError(false);
-    if (targetUrl !== displayedUrl) {
-      if (targetUrl) {
-        let active = true;
-        preloadImage(targetUrl).then(() => {
-          if (active) {
-            setDisplayedUrl(targetUrl);
-          }
-        }).catch(() => {
-          if (active) {
-            setDisplayedUrl(targetUrl);
-          }
-        });
-
-        return () => {
-          active = false;
-        };
-      } else {
-        setDisplayedUrl(null);
-      }
+    const targetUrl = getResolvedBrandLogo(rawLogoUrl) || DEFAULT_BRAND_LOGO;
+    setDisplayedUrl(targetUrl);
+    setLoadFailed(false);
+    
+    if (targetUrl) {
+      let active = true;
+      preloadImage(targetUrl).catch(() => {
+        if (active && targetUrl !== DEFAULT_BRAND_LOGO) {
+          // If custom base64 or remote URL is unreachable on this device, fallback to static asset
+          setDisplayedUrl(DEFAULT_BRAND_LOGO);
+        }
+      });
+      return () => {
+        active = false;
+      };
     }
-  }, [rawLogoUrl, displayedUrl]);
+  }, [rawLogoUrl]);
 
-  // If no custom uploaded logo is present or an error occurred, do not display any image
-  if (!displayedUrl || hasError || !isCustomUploadedLogo(displayedUrl)) {
-    return null;
-  }
+  const activeSrc = loadFailed ? DEFAULT_BRAND_LOGO : (displayedUrl || DEFAULT_BRAND_LOGO);
 
   return (
     <div 
       id={id}
       className={`relative flex items-center justify-center overflow-hidden shrink-0 select-none ${className}`}
+      style={{ minWidth: '2rem', minHeight: '2rem' }}
     >
       <img
         id={imgId}
-        src={displayedUrl}
+        src={activeSrc}
         alt={alt || settings?.siteTitle || 'Medcore Academy'}
-        className={`${imageClassName} transition-all duration-200 block`}
+        className={`${imageClassName} transition-all duration-200 block max-w-full max-h-full`}
         loading="eager"
-        decoding="sync"
+        decoding="async"
         onError={() => {
-          setHasError(true);
-          setDisplayedUrl(null);
+          if (!loadFailed && activeSrc !== DEFAULT_BRAND_LOGO) {
+            setLoadFailed(true);
+            setDisplayedUrl(DEFAULT_BRAND_LOGO);
+          }
         }}
       />
     </div>

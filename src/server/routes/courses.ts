@@ -103,10 +103,34 @@ router.post('/upload-pdf', authenticateToken, (req, res, next) => {
   }
 });
 
-// Get public courses (Only published ones created by admin)
+// Get public courses (Published courses created by admin and super admin)
 router.get('/public', async (req, res) => {
   try {
-    const publishedCourses = await db.select().from(courses).where(eq(courses.isPublished, true));
+    const publishedCourses = await db
+      .select({
+        id: courses.id,
+        title: courses.title,
+        code: courses.code,
+        description: courses.description,
+        thumbnail: courses.thumbnail,
+        pdfUrl: courses.pdfUrl,
+        pdfName: courses.pdfName,
+        pdfSize: courses.pdfSize,
+        noteTitle: courses.noteTitle,
+        noteContent: courses.noteContent,
+        isPublished: courses.isPublished,
+        isProtected: courses.isProtected,
+        authorId: courses.authorId,
+        createdAt: courses.createdAt,
+        authorName: users.name,
+        authorRole: users.role
+      })
+      .from(courses)
+      .leftJoin(users, eq(courses.authorId, users.id))
+      .where(eq(courses.isPublished, true));
+
+    // Sort newest courses first
+    publishedCourses.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     res.json(publishedCourses);
   } catch (error) {
     console.error('Fetch public courses error:', error);

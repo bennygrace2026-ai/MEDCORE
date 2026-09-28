@@ -105,10 +105,10 @@ export default function Payments() {
       });
       if (res.ok) {
         const data = await res.json();
-        setMyRequests(data);
+        setMyRequests(Array.isArray(data) ? data : []);
       }
-    } catch (err) {
-      console.error('Failed to load my payment requests:', err);
+    } catch (err: any) {
+      console.warn('Student payment requests fetch warning:', err?.message || err);
     } finally {
       setIsLoadingRequests(false);
     }

@@ -3,7 +3,8 @@ import {
   getResolvedBrandLogo, 
   isValidBrandLogo, 
   getSuperAdminStaticLogo, 
-  setSuperAdminStaticLogo
+  setSuperAdminStaticLogo,
+  DEFAULT_BRAND_LOGO
 } from '../constants/brandAssets';
 
 export interface CoinPackage {
@@ -141,14 +142,14 @@ const enrichFrontendSettings = (data: FrontendSettings | null): FrontendSettings
     primaryColor: '#dc2626',
     contactEmail: 'support@medcoreacademy.com',
     contactPhone: '+234 800 000 0000',
-    heroLogo: undefined,
-    registrationLogo: undefined,
-    loginLogo: undefined,
+    heroLogo: DEFAULT_BRAND_LOGO,
+    registrationLogo: DEFAULT_BRAND_LOGO,
+    loginLogo: DEFAULT_BRAND_LOGO,
   };
 
-  const resolvedHero = getResolvedBrandLogo(base.heroLogo) || undefined;
-  const resolvedReg = getResolvedBrandLogo(base.registrationLogo) || undefined;
-  const resolvedLogin = getResolvedBrandLogo(base.loginLogo) || undefined;
+  const resolvedHero = getResolvedBrandLogo(base.heroLogo) || DEFAULT_BRAND_LOGO;
+  const resolvedReg = getResolvedBrandLogo(base.registrationLogo) || DEFAULT_BRAND_LOGO;
+  const resolvedLogin = getResolvedBrandLogo(base.loginLogo) || DEFAULT_BRAND_LOGO;
 
   return {
     ...base,
@@ -172,9 +173,9 @@ const getInitialFrontendSettings = (): FrontendSettings => {
     } else if (parsed.heroLogo && isValidBrandLogo(parsed.heroLogo)) {
       // keep stored logo
     } else {
-      parsed.heroLogo = undefined;
-      parsed.registrationLogo = undefined;
-      parsed.loginLogo = undefined;
+      parsed.heroLogo = DEFAULT_BRAND_LOGO;
+      parsed.registrationLogo = DEFAULT_BRAND_LOGO;
+      parsed.loginLogo = DEFAULT_BRAND_LOGO;
     }
     
     return enrichFrontendSettings(parsed);
