@@ -158,94 +158,207 @@ router.post('/register', async (req, res) => {
   }
 });
 
+async function buildAuthDebugPayload(email: string, expectedRole?: string, failureReason?: string, errorObj?: any) {
+  const cleanEmail = email ? String(email).trim().toLowerCase() : '';
+  const dbStatus = getDatabaseStatus();
+
+  // Query Supabase REST client if available to capture full Supabase payload
+  let supabaseResponse: any = null;
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const { data, error, status, statusText } = await supabase
+        .from('users')
+        .select('id, email, role, status')
+        .eq('email', cleanEmail)
+        .limit(1);
+      
+      supabaseResponse = {
+        httpStatus: status,
+        statusText,
+        data,
+        error: error ? {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        } : null
+      };
+    } catch (err: any) {
+      supabaseResponse = {
+        fetchError: err.message,
+        name: err.name,
+        stack: err.stack?.split('\n').slice(0, 3)
+      };
+    }
+  } else {
+    supabaseResponse = {
+      notice: 'Supabase REST client not initialized (check SUPABASE_URL & SUPABASE_ANON_KEY in deployment environment).'
+    };
+  }
+
+  const debugPayload = {
+    timestamp: new Date().toISOString(),
+    attemptEmail: cleanEmail,
+    roleRequested: expectedRole || 'STUDENT',
+    failureReason,
+    supabase: {
+      isConfigured: isSupabaseConfigured(),
+      url: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.replace(/:\/\/([^:]+):[^@]+@/, '://****@') : 'NOT_SET',
+      hasAnonKey: !!process.env.SUPABASE_ANON_KEY,
+      response: supabaseResponse
+    },
+    database: {
+      engine: dbStatus.databaseEngine,
+      isPostgres: dbStatus.isPostgres,
+      isSqlite: dbStatus.isSqlite,
+      isSchemaInitialized: dbStatus.isSchemaInitialized,
+      drizzleStatus: errorObj ? 'ERROR' : 'READY',
+      errorDetails: errorObj ? {
+        message: errorObj.message,
+        code: errorObj.code,
+        routine: errorObj.routine,
+        hint: errorObj.hint
+      } : null
+    },
+    deploymentEnvironment: {
+      isServerless: !!(process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT || process.env.VERCEL || process.env.NOW_REGION),
+      platform: process.env.VERCEL ? 'Vercel' : (process.env.NETLIFY ? 'Netlify' : (process.env.AWS_LAMBDA_FUNCTION_NAME ? 'AWS Lambda' : 'Node Container (Cloud Run / Render)')),
+      nodeEnv: process.env.NODE_ENV || 'development',
+      hasDatabaseUrl: !!(process.env.SUPABASE_DATABASE_URL || process.env.DATABASE_URL),
+      hasSupabaseUrl: !!process.env.SUPABASE_URL,
+      hasAnonKey: !!process.env.SUPABASE_ANON_KEY,
+      hasJwtSecret: !!process.env.JWT_SECRET
+    }
+  };
+
+  // Structured console debug logging for deployment visibility
+  console.error('\n' + '='.repeat(70));
+  console.error(`[AUTH FLOW DEBUGGER] LOGIN FAILED | Role: ${expectedRole || 'STUDENT'} | Email: ${cleanEmail}`);
+  console.error(`Failure Reason: ${failureReason}`);
+  console.error('Database Engine:', dbStatus.databaseEngine);
+  console.error('Supabase Client Report:', JSON.stringify(supabaseResponse, null, 2));
+  if (errorObj) {
+    console.error('Exception Details:', errorObj.message, errorObj.code || '');
+  }
+  console.error('='.repeat(70) + '\n');
+
+  return debugPayload;
+}
+
 router.post('/login', async (req, res) => {
   try {
     await dbInitialization;
     const { email, password, expectedRole } = req.body;
     if (!email || !password) {
-      res.status(400).json({ error: 'Email and password are required' });
+      const debugPayload = await buildAuthDebugPayload(email, expectedRole, 'Email and password are required');
+      res.status(400).json({ error: 'Email and password are required', debugPayload });
       return;
     }
 
     const cleanEmail = String(email).trim().toLowerCase();
 
-    let user = await db.select().from(users).where(
-      or(
-        eq(users.email, cleanEmail),
-        eq(users.secondaryEmail, cleanEmail)
-      )
-    ).limit(1);
-
-    if (user.length === 0) {
+    let user: any[] = [];
+    try {
       user = await db.select().from(users).where(
         or(
-          eq(users.email, String(email).trim()),
-          eq(users.secondaryEmail, String(email).trim())
+          eq(users.email, cleanEmail),
+          eq(users.secondaryEmail, cleanEmail)
+        )
+      ).limit(1);
+    } catch (queryErr) {
+      console.warn('Initial login query failed, retrying after brief pause...', queryErr);
+      await new Promise(r => setTimeout(r, 200));
+      user = await db.select().from(users).where(
+        or(
+          eq(users.email, cleanEmail),
+          eq(users.secondaryEmail, cleanEmail)
         )
       ).limit(1);
     }
 
     if (user.length === 0) {
-      res.status(401).json({ error: 'EMAIL NOT REGISTERED' });
+      try {
+        user = await db.select().from(users).where(
+          or(
+            eq(users.email, String(email).trim()),
+            eq(users.secondaryEmail, String(email).trim())
+          )
+        ).limit(1);
+      } catch {}
+    }
+
+    if (user.length === 0) {
+      const debugPayload = await buildAuthDebugPayload(cleanEmail, expectedRole, 'EMAIL NOT REGISTERED');
+      res.status(401).json({ error: 'EMAIL NOT REGISTERED', debugPayload });
       return;
     }
 
     const validPassword = await bcrypt.compare(password, user[0].password);
 
     if (!validPassword) {
-      res.status(401).json({ error: 'Invalid email or password' });
+      const debugPayload = await buildAuthDebugPayload(cleanEmail, expectedRole, 'Invalid email or password');
+      res.status(401).json({ error: 'Invalid email or password', debugPayload });
       return;
     }
 
     // Check account status (Suspension or Ban)
     if (user[0].status === 'SUSPENDED') {
-      res.status(403).json({ error: 'Your account has been SUSPENDED by the administrator. Please contact support.' });
+      const debugPayload = await buildAuthDebugPayload(cleanEmail, expectedRole, 'ACCOUNT SUSPENDED');
+      res.status(403).json({ error: 'Your account has been SUSPENDED by the administrator. Please contact support.', debugPayload });
       return;
     }
     if (user[0].status === 'BANNED') {
-      res.status(403).json({ error: 'Your account has been BANNED from Medcore Academy.' });
+      const debugPayload = await buildAuthDebugPayload(cleanEmail, expectedRole, 'ACCOUNT BANNED');
+      res.status(403).json({ error: 'Your account has been BANNED from Medcore Academy.', debugPayload });
       return;
     }
 
     // Role verification for dedicated admin portals:
     if (expectedRole === 'SUPER_ADMIN' && user[0].role !== 'SUPER_ADMIN') {
       if (user[0].role === 'ADMIN') {
-        res.status(403).json({ error: 'This account is an Administrator. Please use the Admin Login portal at /admin/login.' });
+        const debugPayload = await buildAuthDebugPayload(cleanEmail, expectedRole, 'ROLE MISMATCH: Account is Faculty Admin (ADMIN)');
+        res.status(403).json({ error: 'This account is an Administrator. Please use the Admin Login portal at /admin/login.', debugPayload });
         return;
       }
-      res.status(403).json({ error: 'Access Denied: Super Admin portal requires Super Administrator credentials.' });
+      const debugPayload = await buildAuthDebugPayload(cleanEmail, expectedRole, 'ROLE MISMATCH: Expected SUPER_ADMIN, got ' + user[0].role);
+      res.status(403).json({ error: 'Access Denied: Super Admin portal requires Super Administrator credentials.', debugPayload });
       return;
     }
 
     if (expectedRole === 'ADMIN' && user[0].role !== 'ADMIN' && user[0].role !== 'SUPER_ADMIN') {
-      res.status(403).json({ error: 'Access Denied: Administrator account required. Students please sign in at the Student portal.' });
+      const debugPayload = await buildAuthDebugPayload(cleanEmail, expectedRole, 'ROLE MISMATCH: Expected ADMIN, got ' + user[0].role);
+      res.status(403).json({ error: 'Access Denied: Administrator account required. Students please sign in at the Student portal.', debugPayload });
       return;
     }
 
     let studentRecord = undefined;
     if (user[0].role === 'STUDENT') {
-      const result = await db.select().from(students).where(eq(students.userId, user[0].id)).limit(1);
-      if (result.length > 0) {
-        studentRecord = await syncAndFormatStudent(result[0]);
-      } else {
-        const studentId = await generateStudentId();
-        const expiryDate = new Date();
-        expiryDate.setDate(expiryDate.getDate() + 30);
-        const newRecord = {
-          id: studentId,
-          userId: user[0].id,
-          institution: 'Medcore Academy',
-          department: 'Medicine & Surgery',
-          level: '300',
-          coins: 100,
-          accessDaysRemaining: 30,
-          accessExpiryDate: expiryDate,
-          streak: 0,
-          isApproved: true,
-          status: 'ACTIVE'
-        };
-        await db.insert(students).values(newRecord);
-        studentRecord = await syncAndFormatStudent(newRecord);
+      try {
+        const result = await db.select().from(students).where(eq(students.userId, user[0].id)).limit(1);
+        if (result.length > 0) {
+          studentRecord = await syncAndFormatStudent(result[0]);
+        } else {
+          const studentId = await generateStudentId();
+          const expiryDate = new Date();
+          expiryDate.setDate(expiryDate.getDate() + 30);
+          const newRecord = {
+            id: studentId,
+            userId: user[0].id,
+            institution: 'Medcore Academy',
+            department: 'Medicine & Surgery',
+            level: '300',
+            coins: 100,
+            accessDaysRemaining: 30,
+            accessExpiryDate: expiryDate,
+            streak: 0,
+            isApproved: true,
+            status: 'ACTIVE'
+          };
+          await db.insert(students).values(newRecord).catch(() => {});
+          studentRecord = await syncAndFormatStudent(newRecord);
+        }
+      } catch (stErr) {
+        console.warn('Student record sync notice during login:', stErr);
       }
     }
 
@@ -272,8 +385,10 @@ router.post('/login', async (req, res) => {
     });
   } catch (error: any) {
     console.error('Login error:', error);
+    const debugPayload = await buildAuthDebugPayload(req.body?.email || '', req.body?.expectedRole, 'SERVER EXCEPTION: ' + error?.message, error);
     res.status(500).json({ 
       error: error?.message || 'Server error during login. Please try again in a few moments.',
+      debugPayload,
       specificError: {
         message: error?.message,
         name: error?.name,

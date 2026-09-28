@@ -7,6 +7,7 @@ import { ShieldCheck, AlertCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import GlobalBrandLogo from '../../components/shared/GlobalBrandLogo';
+import { logAuthFailureDebug } from '../../utils/authDebugger';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -58,7 +59,7 @@ export default function AdminLogin() {
       setIsLoading(true);
       setError('');
       
-      const response = await fetch('/api/auth/login', {
+      let response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -69,6 +70,22 @@ export default function AdminLogin() {
           expectedRole: 'ADMIN',
         }),
       });
+
+      // Transparent retry on connection warming
+      if (!response.ok && response.status >= 500) {
+        await new Promise((resolve) => setTimeout(resolve, 350));
+        response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: data.email.trim().toLowerCase(),
+            password: data.password,
+            expectedRole: 'ADMIN',
+          }),
+        });
+      }
 
       const rawText = await response.text();
       let result: any = null;
@@ -83,6 +100,13 @@ export default function AdminLogin() {
       }
 
       if (!response.ok) {
+        logAuthFailureDebug({
+          role: 'Admin',
+          email: data.email.trim(),
+          httpStatus: response.status,
+          rawResponseText: rawText,
+          responsePayload: result
+        });
         const specificMsg = result?.specificError?.message || result?.specificMessage || result?.error;
         throw new Error(specificMsg || (response.status >= 500 ? 'Server error occurred during admin sign-in. Please try again in a few moments.' : 'Invalid administrator credentials. Please check your email and password.'));
       }
@@ -103,6 +127,11 @@ export default function AdminLogin() {
         navigate(from, { replace: true });
       }
     } catch (err: any) {
+      logAuthFailureDebug({
+        role: 'Admin',
+        email: data.email?.trim() || '',
+        error: err
+      });
       setError(formatAuthError(err));
     } finally {
       setIsLoading(false);

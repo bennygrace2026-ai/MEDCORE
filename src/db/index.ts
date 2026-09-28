@@ -329,9 +329,9 @@ const setupDatabase = async () => {
       try {
         const client = postgres(url, {
           ssl: { rejectUnauthorized: false },
-          connect_timeout: 3,
-          max: 1,
-          idle_timeout: 10,
+          connect_timeout: 4,
+          max: 10,
+          idle_timeout: 30,
           prepare: false
         });
         await client`SELECT 1`;

@@ -8,6 +8,7 @@ import { motion } from 'motion/react';
 import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import GlobalBrandLogo from '../../components/shared/GlobalBrandLogo';
+import { logAuthFailureDebug } from '../../utils/authDebugger';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -61,7 +62,7 @@ export default function SuperAdminLogin() {
       setIsLoading(true);
       setError('');
       
-      const response = await fetch('/api/auth/login', {
+      let response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -72,6 +73,22 @@ export default function SuperAdminLogin() {
           expectedRole: 'SUPER_ADMIN',
         }),
       });
+
+      // Transparent retry on connection warming
+      if (!response.ok && response.status >= 500) {
+        await new Promise((resolve) => setTimeout(resolve, 350));
+        response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: data.email.trim().toLowerCase(),
+            password: data.password,
+            expectedRole: 'SUPER_ADMIN',
+          }),
+        });
+      }
 
       const rawText = await response.text();
       let result: any = null;
@@ -86,6 +103,13 @@ export default function SuperAdminLogin() {
       }
 
       if (!response.ok) {
+        logAuthFailureDebug({
+          role: 'Super Admin',
+          email: data.email.trim(),
+          httpStatus: response.status,
+          rawResponseText: rawText,
+          responsePayload: result
+        });
         const specificMsg = result?.specificError?.message || result?.specificMessage || result?.error;
         throw new Error(specificMsg || (response.status >= 500 ? 'Server error occurred during super admin sign-in. Please try again in a few moments.' : 'Invalid Super Administrator credentials. Please check your email and security key.'));
       }
@@ -102,6 +126,11 @@ export default function SuperAdminLogin() {
       
       navigate(from, { replace: true });
     } catch (err: any) {
+      logAuthFailureDebug({
+        role: 'Super Admin',
+        email: data.email?.trim() || '',
+        error: err
+      });
       setError(formatAuthError(err));
     } finally {
       setIsLoading(false);
