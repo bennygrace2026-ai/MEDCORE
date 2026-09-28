@@ -6,7 +6,7 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
-  ignored_node_modules = ["@libsql/client"]
+  external_node_modules = ["@libsql/client", "postgres"]
 
 [[redirects]]
   from = "/api/*"

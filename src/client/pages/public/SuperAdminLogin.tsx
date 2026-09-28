@@ -29,13 +29,16 @@ export default function SuperAdminLogin() {
 
   const from = (location.state as any)?.from?.pathname || '/super-admin';
 
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<LoginFormValues>({
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
   });
 
   const formatAuthError = (rawError: any): string => {
     if (!rawError) return '';
     const msg = String(rawError?.message || rawError || '').trim();
+    if (msg === 'EMAIL NOT REGISTERED') {
+      return 'This super administrator identity is not recognized.';
+    }
     if (
       msg.includes("Unexpected token '<'") ||
       msg.includes('is not valid JSON') ||
@@ -45,7 +48,10 @@ export default function SuperAdminLogin() {
       msg.includes('<!DOCTYPE') ||
       msg.includes('<!doctype')
     ) {
-      return 'Authentication service temporarily busy. Please try again.';
+      return 'Authentication service is initializing. Please try again in a moment.';
+    }
+    if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+      return 'Unable to reach the server. Please check your internet connection.';
     }
     return msg;
   };
@@ -211,23 +217,6 @@ export default function SuperAdminLogin() {
               className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-purple-600 hover:bg-purple-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isLoading ? 'Authorizing...' : 'Initialize Access'}
-            </button>
-          </div>
-
-          <div className="p-3 bg-purple-950/40 border border-purple-900/50 rounded-xl flex items-center justify-between text-xs">
-            <div className="font-mono text-purple-300">
-              <span className="text-zinc-500">Super Admin:</span> bennygrace2026@gmail.com
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setValue('email', 'bennygrace2026@gmail.com');
-                setValue('password', 'chimuanya2001');
-                setError('');
-              }}
-              className="text-purple-400 hover:text-purple-200 underline font-semibold text-[11px] cursor-pointer"
-            >
-              Fill Credentials
             </button>
           </div>
         </form>

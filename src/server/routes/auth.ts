@@ -26,6 +26,7 @@ const generateStudentId = async (): Promise<string> => {
 
 router.post('/register', async (req, res) => {
   try {
+    await dbInitialization;
     const { name, email, phone, password, country, state, institution, department, level } = req.body;
 
     const cleanEmail = email ? String(email).trim().toLowerCase() : '';
@@ -159,6 +160,7 @@ router.post('/register', async (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
+    await dbInitialization;
     const { email, password, expectedRole } = req.body;
     if (!email || !password) {
       res.status(400).json({ error: 'Email and password are required' });

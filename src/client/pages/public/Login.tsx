@@ -23,13 +23,16 @@ export default function Login() {
   const setAuth = useAuthStore((state) => state.setAuth);
   const { settings, frontendSettings } = useSettingsStore();
 
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<LoginFormValues>({
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
   });
 
   const formatAuthError = (rawError: any): string => {
     if (!rawError) return '';
     const msg = String(rawError?.message || rawError || '').trim();
+    if (msg === 'EMAIL NOT REGISTERED') {
+      return 'This email address is not registered. Please check your spelling or register a new student account.';
+    }
     if (
       msg.includes("Unexpected token '<'") ||
       msg.includes('is not valid JSON') ||
@@ -39,7 +42,10 @@ export default function Login() {
       msg.includes('<!DOCTYPE') ||
       msg.includes('<!doctype')
     ) {
-      return 'Authentication service temporarily busy. Please try again.';
+      return 'Authentication service is initializing. Please try again in a moment.';
+    }
+    if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+      return 'Unable to reach the server. Please check your internet connection.';
     }
     return msg;
   };
@@ -215,23 +221,6 @@ export default function Login() {
               ) : (
                 'Sign in'
               )}
-            </button>
-          </div>
-
-          <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-xl flex items-center justify-between text-xs">
-            <div className="text-zinc-600">
-              <span className="font-semibold text-zinc-800">Student:</span> student@medcore.com
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setValue('email', 'student@medcore.com');
-                setValue('password', 'chimuanya2001');
-                setError('');
-              }}
-              className="text-red-600 hover:text-red-700 underline font-semibold text-[11px] cursor-pointer"
-            >
-              Fill Credentials
             </button>
           </div>
         </form>
