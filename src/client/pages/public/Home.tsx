@@ -20,6 +20,9 @@ export default function Home() {
             <img 
               src={brandLogo} 
               alt="" 
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
               className="w-[120%] sm:w-[80%] lg:w-[60%] h-auto object-contain grayscale" 
             />
           </div>

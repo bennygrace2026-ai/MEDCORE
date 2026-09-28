@@ -218,7 +218,11 @@ export default function App() {
               
               {/* Dedicated Admin Login Routes (No Layout) */}
               <Route path="/admin/login" element={<AdminLogin />} />
+              <Route path="/admin-login" element={<Navigate to="/admin/login" replace />} />
               <Route path="/super-admin/login" element={<SuperAdminLogin />} />
+              <Route path="/super-admin-login" element={<Navigate to="/super-admin/login" replace />} />
+              <Route path="/superadmin/login" element={<Navigate to="/super-admin/login" replace />} />
+              <Route path="/admin/super-login" element={<Navigate to="/super-admin/login" replace />} />
 
               {/* Protected Student Routes */}
               <Route element={<ProtectedRoute allowedRoles={['STUDENT', 'ADMIN', 'SUPER_ADMIN']} loginPath="/login" />}>

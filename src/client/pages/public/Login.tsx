@@ -23,7 +23,7 @@ export default function Login() {
   const setAuth = useAuthStore((state) => state.setAuth);
   const { settings, frontendSettings } = useSettingsStore();
 
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
   });
 
@@ -215,6 +215,23 @@ export default function Login() {
               ) : (
                 'Sign in'
               )}
+            </button>
+          </div>
+
+          <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-xl flex items-center justify-between text-xs">
+            <div className="text-zinc-600">
+              <span className="font-semibold text-zinc-800">Student:</span> student@medcore.com
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setValue('email', 'student@medcore.com');
+                setValue('password', 'chimuanya2001');
+                setError('');
+              }}
+              className="text-red-600 hover:text-red-700 underline font-semibold text-[11px] cursor-pointer"
+            >
+              Fill Credentials
             </button>
           </div>
         </form>

@@ -79,18 +79,23 @@ export function createApp() {
     res.status(404).json({ error: 'Uploaded asset not found' });
   });
 
-  app.use(cors());
+  app.use(cors({
+    origin: true,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
+  }));
+  app.options('*', cors());
+
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
   // Ensure database initialization is complete before handling API routes
   app.use(async (req, res, next) => {
-    if (req.url.startsWith('/api') || req.url.startsWith('/.netlify')) {
-      try {
-        await dbInitialization;
-      } catch (err) {
-        console.warn('[DB Middleware Warning] Error awaiting dbInitialization:', err);
-      }
+    try {
+      await dbInitialization;
+    } catch (err) {
+      console.warn('[DB Middleware Warning] Error awaiting dbInitialization:', err);
     }
     next();
   });
@@ -154,9 +159,16 @@ export function createApp() {
     });
   });
 
-  // Mount API router at both standard '/api' and Netlify serverless prefix '/.netlify/functions/api'
+  // Mount API router across all standard paths and serverless prefixes
   app.use('/api', apiRouter);
   app.use('/.netlify/functions/api', apiRouter);
+  app.use('/auth', authRouter); // Direct mount for serverless setups rewriting without /api prefix
+  app.use('/users', usersRouter);
+  app.use('/courses', coursesRouter);
+  app.use('/settings', settingsRouter);
+  app.use('/quizzes', quizzesRouter);
+  app.use('/chat', chatRouter);
+  app.use('/contact', contactRouter);
 
   // Explicitly handle missing API routes to prevent SPA fallback (HTML) for API calls
   app.all(['/api/*', '/.netlify/functions/api/*'], (req, res) => {

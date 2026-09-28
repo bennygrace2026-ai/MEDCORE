@@ -26,7 +26,7 @@ export default function AdminLogin() {
 
   const from = (location.state as any)?.from?.pathname || '/admin';
 
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
   });
 
@@ -193,6 +193,23 @@ export default function AdminLogin() {
               className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-blue-600 hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-zinc-900 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isLoading ? 'Authenticating...' : 'Secure Login'}
+            </button>
+          </div>
+
+          <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl flex items-center justify-between text-xs">
+            <div className="font-mono text-zinc-300">
+              <span className="text-zinc-500">Admin:</span> admin@medcore.com
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setValue('email', 'admin@medcore.com');
+                setValue('password', 'chimuanya2001');
+                setError('');
+              }}
+              className="text-blue-400 hover:text-blue-300 underline font-semibold text-[11px] cursor-pointer"
+            >
+              Fill Credentials
             </button>
           </div>
         </form>

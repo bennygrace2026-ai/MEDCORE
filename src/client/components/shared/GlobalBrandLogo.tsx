@@ -51,7 +51,8 @@ export default function GlobalBrandLogo({
     }
   }, [rawLogoUrl]);
 
-  const activeSrc = loadFailed ? DEFAULT_BRAND_LOGO : (displayedUrl || DEFAULT_BRAND_LOGO);
+  const currentResolved = getResolvedBrandLogo(rawLogoUrl) || DEFAULT_BRAND_LOGO;
+  const activeSrc = loadFailed ? DEFAULT_BRAND_LOGO : (displayedUrl || currentResolved);
 
   return (
     <div 
@@ -63,9 +64,10 @@ export default function GlobalBrandLogo({
         id={imgId}
         src={activeSrc}
         alt={alt || settings?.siteTitle || 'Medcore Academy'}
-        className={`${imageClassName} transition-all duration-200 block max-w-full max-h-full`}
+        className={`${imageClassName} block max-w-full max-h-full`}
         loading="eager"
-        decoding="async"
+        fetchPriority="high"
+        decoding="sync"
         onError={() => {
           if (!loadFailed && activeSrc !== DEFAULT_BRAND_LOGO) {
             setLoadFailed(true);
