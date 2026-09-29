@@ -1,5 +1,5 @@
 import { createApp } from '../src/server/app.js';
-import { dbInitialization } from '../src/db/index.js';
+import { ensureDbReady } from '../src/db/index.js';
 
 let appInstance: any = null;
 
@@ -18,7 +18,7 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    await dbInitialization;
+    await ensureDbReady();
   } catch (err) {
     console.warn('[Vercel Serverless] DB initialization notice:', err);
   }

@@ -45,31 +45,53 @@ let supabaseDbUrl = rawDbUrl;
 function buildCandidateUrls(rawUrl: string): string[] {
   const urls: string[] = [];
   
-  // If user provided custom URL, put it first!
-  if (process.env.SUPABASE_DATABASE_URL || process.env.DATABASE_URL) {
-    urls.push(rawUrl);
+  // Extract project ref and password if available
+  let ref = 'sdpjxnmzxgpsxovpbwnk';
+  let password = 'chimuanya2001';
+  let dbName = 'postgres';
+
+  if (process.env.SUPABASE_DATABASE_PASSWORD) {
+    password = process.env.SUPABASE_DATABASE_PASSWORD;
+  }
+
+  // Parse provided URL if present
+  if (rawUrl) {
     try {
       const parsed = new URL(rawUrl.replace('postgresql://', 'http://').replace('postgres://', 'http://'));
       const host = parsed.hostname;
-      const user = decodeURIComponent(parsed.username || 'postgres');
-      const password = decodeURIComponent(parsed.password || '');
-      const dbName = parsed.pathname.replace(/^\//, '') || 'postgres';
-
+      if (parsed.password && !rawUrl.includes('[YOUR-PASSWORD]')) {
+        password = decodeURIComponent(parsed.password);
+      }
+      if (parsed.pathname && parsed.pathname.replace(/^\//, '')) {
+        dbName = parsed.pathname.replace(/^\//, '');
+      }
       const supabaseMatch = host.match(/^db\.([a-z0-9_-]+)\.supabase\.co$/);
       if (supabaseMatch) {
-        const ref = supabaseMatch[1];
-        const poolerUser = user.includes('.') ? user : `${user}.${ref}`;
-        const auth = password ? `${encodeURIComponent(poolerUser)}:${encodeURIComponent(password)}` : encodeURIComponent(poolerUser);
-        urls.push(`postgresql://${auth}@aws-0-eu-west-2.pooler.supabase.com:6543/${dbName}`);
+        ref = supabaseMatch[1];
+      } else if (host.includes('.pooler.supabase.com')) {
+        const user = decodeURIComponent(parsed.username || '');
+        if (user.includes('.')) {
+          ref = user.split('.')[1];
+        }
       }
     } catch {}
   }
 
-  // Verified project high-speed pooler URL (sub-250ms latency)
-  urls.push('postgresql://postgres.sdpjxnmzxgpsxovpbwnk:chimuanya2001@aws-0-eu-west-2.pooler.supabase.com:6543/postgres');
-  urls.push('postgresql://postgres.sdpjxnmzxgpsxovpbwnk:chimuanya2001@aws-0-eu-west-2.pooler.supabase.com:5432/postgres');
+  // 1. Transaction Pooler port 6543 (IPv4 compatible, sub-150ms connection, best for serverless/Vercel/Netlify)
+  urls.push(`postgresql://postgres.${ref}:${encodeURIComponent(password)}@aws-0-eu-west-2.pooler.supabase.com:6543/${dbName}`);
 
-  return Array.from(new Set(urls)).slice(0, 3);
+  // 2. Session Pooler port 5432 (IPv4 compatible)
+  urls.push(`postgresql://postgres.${ref}:${encodeURIComponent(password)}@aws-0-eu-west-2.pooler.supabase.com:5432/${dbName}`);
+
+  // 3. User provided rawUrl (if non-placeholder and not matching direct IPv6 host)
+  if (rawUrl && !rawUrl.includes('[YOUR-PASSWORD]') && !rawUrl.includes(`db.${ref}.supabase.co`)) {
+    urls.push(rawUrl);
+  }
+
+  // 4. Default verified fallback pooler
+  urls.push('postgresql://postgres.sdpjxnmzxgpsxovpbwnk:chimuanya2001@aws-0-eu-west-2.pooler.supabase.com:6543/postgres');
+
+  return Array.from(new Set(urls));
 }
 
 let dbInstance: any = null;
@@ -322,7 +344,7 @@ const setupDatabase = async () => {
   const candidateUrls = buildCandidateUrls(activeUrl);
   console.log(`[Database Setup] Connecting to database (${candidateUrls.length} prioritized candidates)...`);
 
-  // Attempt Postgres connection with strict 4.5s overall timeout
+  // Attempt Postgres connection with resilient timeout
   let connectedSql: any = null;
   const connectPromise = async () => {
     for (const url of candidateUrls) {
@@ -330,14 +352,14 @@ const setupDatabase = async () => {
         const client = postgres(url, {
           ssl: { rejectUnauthorized: false },
           connect_timeout: 4,
-          max: 10,
+          max: 4,
           idle_timeout: 30,
           prepare: false
         });
         await client`SELECT 1`;
         return client;
       } catch (err) {
-        // Continue to next candidate
+        console.warn(`[Database Setup Notice] Candidate connection attempt (${url.replace(/:[^:@]+@/, ':****@')}):`, (err as any)?.message || err);
       }
     }
     return null;
@@ -346,7 +368,7 @@ const setupDatabase = async () => {
   try {
     connectedSql = await Promise.race([
       connectPromise(),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 4500))
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 12000))
     ]);
   } catch {
     connectedSql = null;
@@ -387,6 +409,19 @@ const setupDatabase = async () => {
 // Start setup immediately
 export const dbInitialization = setupDatabase();
 
+export async function ensureDbReady(timeoutMs = 12000): Promise<any> {
+  if (dbInstance) return dbInstance;
+  const start = Date.now();
+  await dbInitialization;
+  while (!dbInstance && (Date.now() - start < timeoutMs)) {
+    await new Promise(r => setTimeout(r, 100));
+  }
+  if (!dbInstance) {
+    throw new Error('Database connection timeout. Please check your Supabase credentials or network connection.');
+  }
+  return dbInstance;
+}
+
 export const sqlite = new Proxy({}, {
   get(target, prop) {
     return sqliteInstance ? sqliteInstance[prop] : undefined;
@@ -396,7 +431,6 @@ export const sqlite = new Proxy({}, {
 export const db = new Proxy({}, {
   get(target, prop) {
     if (!dbInstance) {
-      // Emergency sync check: if setupDatabase hasn't assigned dbInstance yet, return an accessor that awaits or rejects safely
       throw new Error('Database is initializing. Please retry in a few moments.');
     }
     return dbInstance[prop];

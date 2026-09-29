@@ -1,6 +1,6 @@
 import serverless from 'serverless-http';
 import { createApp } from '../../src/server/app.js';
-import { dbInitialization } from '../../src/db/index.js';
+import { ensureDbReady } from '../../src/db/index.js';
 
 let serverlessHandler: any = null;
 
@@ -11,7 +11,7 @@ export const handler = async (event: any, context: any) => {
 
   // Wait for database initialization to complete
   try {
-    await dbInitialization;
+    await ensureDbReady();
   } catch (err) {
     console.error('[Netlify Function] Database initialization warning:', err);
   }

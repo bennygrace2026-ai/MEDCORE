@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Helmet, HelmetProvider } from 'react-helmet-async';
 import { useAuthStore } from './client/store/authStore';
-import { useSettingsStore } from './client/store/settingsStore';
+import { useSettingsStore, applyThemeToDocument } from './client/store/settingsStore';
 
 // Components
 import ErrorBoundary from './client/components/shared/ErrorBoundary';
@@ -132,10 +132,14 @@ function SEOMetadataManager() {
 
 export default function App() {
   const { checkAuth } = useAuthStore();
-  const { fetchSettings, settings } = useSettingsStore();
+  const { fetchSettings, settings, theme } = useSettingsStore();
   const [showApp, setShowApp] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingStep, setLoadingStep] = useState('Connecting to Medcore clinical database...');
+
+  useEffect(() => {
+    applyThemeToDocument(theme);
+  }, [theme]);
 
   useEffect(() => {
     if (settings?.siteTitle) {

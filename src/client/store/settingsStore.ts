@@ -107,13 +107,49 @@ interface FrontendSettings {
   loginLogo?: string;
 }
 
+export type ThemeMode = 'light' | 'dark';
+
+export const applyThemeToDocument = (theme: ThemeMode) => {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  if (theme === 'dark') {
+    root.classList.add('dark');
+    root.setAttribute('data-theme', 'dark');
+    root.style.colorScheme = 'dark';
+  } else {
+    root.classList.remove('dark');
+    root.setAttribute('data-theme', 'light');
+    root.style.colorScheme = 'light';
+  }
+};
+
+const getInitialTheme = (): ThemeMode => {
+  try {
+    if (typeof window === 'undefined') return 'light';
+    const stored = localStorage.getItem('medcore_theme');
+    if (stored === 'dark' || stored === 'light') {
+      applyThemeToDocument(stored);
+      return stored;
+    }
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const initialTheme: ThemeMode = prefersDark ? 'dark' : 'light';
+    applyThemeToDocument(initialTheme);
+    return initialTheme;
+  } catch {
+    return 'light';
+  }
+};
+
 interface SettingsState {
   settings: SystemSettings | null;
   frontendSettings: FrontendSettings | null;
+  theme: ThemeMode;
   isLoading: boolean;
   isUploadingGlobal: boolean;
   globalUploadProgress: number;
   globalUploadStatus: string;
+  toggleTheme: () => void;
+  setTheme: (theme: ThemeMode) => void;
   fetchSettings: () => Promise<void>;
   applySettingsOptimistically: (newSettings: Partial<SystemSettings>) => void;
   updateSettings: (token: string, newSettings: Partial<SystemSettings>) => Promise<boolean>;
@@ -211,10 +247,29 @@ async function fetchSafeJson<T>(url: string, retries = 2, delayMs = 600): Promis
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   settings: getInitialSettings(),
   frontendSettings: getInitialFrontendSettings(),
+  theme: getInitialTheme(),
   isLoading: true,
   isUploadingGlobal: false,
   globalUploadProgress: 0,
   globalUploadStatus: '',
+
+  toggleTheme: () => {
+    const currentTheme = get().theme;
+    const nextTheme: ThemeMode = currentTheme === 'dark' ? 'light' : 'dark';
+    try {
+      localStorage.setItem('medcore_theme', nextTheme);
+    } catch {}
+    applyThemeToDocument(nextTheme);
+    set({ theme: nextTheme });
+  },
+
+  setTheme: (newTheme: ThemeMode) => {
+    try {
+      localStorage.setItem('medcore_theme', newTheme);
+    } catch {}
+    applyThemeToDocument(newTheme);
+    set({ theme: newTheme });
+  },
 
   fetchSettings: async () => {
     try {

@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../store/authStore';
-import { User, Lock, Upload, AlertTriangle, Phone, Globe, Building, Mail, MapPin, Eye, EyeOff } from 'lucide-react';
+import { useSettingsStore } from '../../store/settingsStore';
+import { User, Lock, Upload, AlertTriangle, Phone, Globe, Building, Mail, MapPin, Eye, EyeOff, Sun, Moon, Palette, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Settings() {
   const { user, studentData, checkAuth, logout } = useAuthStore();
+  const { theme, setTheme, toggleTheme } = useSettingsStore();
   const navigate = useNavigate();
   
-  const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'danger'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'appearance' | 'password' | 'danger'>('profile');
   
   // Profile Editable states
   const [phone, setPhone] = useState(user?.phone || '');
@@ -134,17 +136,23 @@ export default function Settings() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-        <div className="flex border-b border-zinc-200 overflow-x-auto hide-scrollbar">
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors">
+        <div className="flex border-b border-zinc-200 dark:border-zinc-800 overflow-x-auto hide-scrollbar">
           <button 
             onClick={() => { setActiveTab('profile'); setMessage({ type: '', text: '' }); }}
-            className={`px-6 py-4 text-sm font-bold whitespace-nowrap transition-colors cursor-pointer ${activeTab === 'profile' ? 'border-b-2 border-zinc-900 text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}
+            className={`px-6 py-4 text-sm font-bold whitespace-nowrap transition-colors cursor-pointer ${activeTab === 'profile' ? 'border-b-2 border-zinc-900 dark:border-white text-zinc-900 dark:text-white' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
           >
             Edit Profile
           </button>
           <button 
+            onClick={() => { setActiveTab('appearance'); setMessage({ type: '', text: '' }); }}
+            className={`px-6 py-4 text-sm font-bold whitespace-nowrap transition-colors cursor-pointer ${activeTab === 'appearance' ? 'border-b-2 border-zinc-900 dark:border-white text-zinc-900 dark:text-white' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+          >
+            Appearance & Theme
+          </button>
+          <button 
             onClick={() => { setActiveTab('password'); setMessage({ type: '', text: '' }); }}
-            className={`px-6 py-4 text-sm font-bold whitespace-nowrap transition-colors cursor-pointer ${activeTab === 'password' ? 'border-b-2 border-zinc-900 text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}
+            className={`px-6 py-4 text-sm font-bold whitespace-nowrap transition-colors cursor-pointer ${activeTab === 'password' ? 'border-b-2 border-zinc-900 dark:border-white text-zinc-900 dark:text-white' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
           >
             Change Password
           </button>
@@ -158,8 +166,110 @@ export default function Settings() {
 
         <div className="p-6 sm:p-8">
           {message.text && (
-            <div className={`mb-6 p-4 rounded-xl text-sm font-semibold ${message.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+            <div className={`mb-6 p-4 rounded-xl text-sm font-semibold ${message.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800' : 'bg-red-50 text-red-800 border border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800'}`}>
               {message.text}
+            </div>
+          )}
+
+          {activeTab === 'appearance' && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Display Theme Preference</h3>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+                  Choose how Medcore Academy looks to you. Your theme selection is automatically saved in your settings store and synced across all pages.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                {/* Light Mode Card */}
+                <div 
+                  onClick={() => setTheme('light')}
+                  className={`relative p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                    theme === 'light' 
+                      ? 'border-red-600 bg-red-50/40 dark:bg-zinc-800 shadow-md ring-2 ring-red-500/20' 
+                      : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 bg-white dark:bg-zinc-800/40'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="p-2.5 rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-400">
+                        <Sun className="h-6 w-6" />
+                      </div>
+                      {theme === 'light' && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-red-600 text-white">
+                          <Check className="h-3 w-3 mr-1" /> Active
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Light Mode</h4>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                      Crisp, high-contrast white background with clean medical typography. Optimal for daytime study.
+                    </p>
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-700/60 flex items-center justify-between text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+                    <span>Preview</span>
+                    <span className="px-2 py-1 bg-white border border-zinc-200 rounded-md text-zinc-800 font-mono text-[10px]">
+                      Aa Bb 123
+                    </span>
+                  </div>
+                </div>
+
+                {/* Dark Mode Card */}
+                <div 
+                  onClick={() => setTheme('dark')}
+                  className={`relative p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                    theme === 'dark' 
+                      ? 'border-red-600 bg-zinc-900 text-white shadow-md ring-2 ring-red-500/20' 
+                      : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 bg-white dark:bg-zinc-800/40'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="p-2.5 rounded-xl bg-zinc-800 text-sky-400 border border-zinc-700">
+                        <Moon className="h-6 w-6" />
+                      </div>
+                      {theme === 'dark' && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-red-600 text-white">
+                          <Check className="h-3 w-3 mr-1" /> Active
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Dark Mode</h4>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                      Deep slate & obsidian background engineered to minimize eye strain during late-night clinical study.
+                    </p>
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-700/60 flex items-center justify-between text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+                    <span>Preview</span>
+                    <span className="px-2 py-1 bg-zinc-950 border border-zinc-800 rounded-md text-zinc-100 font-mono text-[10px]">
+                      Aa Bb 123
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Quick Toggle</span>
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-bold rounded-xl transition-colors inline-flex items-center space-x-2 cursor-pointer"
+                >
+                  {theme === 'dark' ? (
+                    <>
+                      <Sun className="h-4 w-4 text-amber-500" />
+                      <span>Switch to Light Mode</span>
+                    </>
+                  ) : (
+                    <>
+                      <Moon className="h-4 w-4 text-zinc-600" />
+                      <span>Switch to Dark Mode</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           )}
 

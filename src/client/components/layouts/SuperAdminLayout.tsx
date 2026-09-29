@@ -2,6 +2,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import GlobalBrandLogo from '../shared/GlobalBrandLogo';
+import ThemeToggle from '../shared/ThemeToggle';
 import { 
   LayoutDashboard, 
   Users, 
@@ -140,6 +141,10 @@ export default function SuperAdminLayout() {
               <p className="text-xs text-purple-400 truncate">Super Admin</p>
             </div>
           </Link>
+          <div className="flex items-center justify-between mb-2 px-2 py-1 bg-zinc-900/60 rounded-xl border border-zinc-800/80">
+            <span className="text-xs font-medium text-zinc-400">Theme</span>
+            <ThemeToggle variant="segmented" />
+          </div>
           <button
             onClick={() => {
               setSidebarOpen(false);
@@ -154,25 +159,26 @@ export default function SuperAdminLayout() {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 w-full overflow-hidden">
-        <header className="bg-white border-b border-zinc-200 h-16 sm:h-20 flex items-center justify-between px-3.5 sm:px-6 lg:px-8 z-10 shrink-0">
+      <div className="flex-1 flex flex-col min-w-0 w-full overflow-hidden bg-zinc-50 dark:bg-zinc-950 transition-colors duration-200">
+        <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 h-16 sm:h-20 flex items-center justify-between px-3.5 sm:px-6 lg:px-8 z-10 shrink-0 transition-colors duration-200">
           <div className="flex items-center min-w-0">
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 -ml-1 mr-2 sm:mr-4 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
+              className="lg:hidden p-2 -ml-1 mr-2 sm:mr-4 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
               aria-label="Open navigation menu"
             >
               <Menu className="h-6 w-6" />
             </button>
-            <h2 className="text-base sm:text-lg lg:text-xl font-bold text-zinc-900 capitalize truncate">
+            <h2 className="text-base sm:text-lg lg:text-xl font-bold text-zinc-900 dark:text-zinc-100 capitalize truncate">
               Super Admin Control
             </h2>
           </div>
           <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
+            <ThemeToggle size="sm" />
             <Link
               to="/"
-              className="flex items-center px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 hover:text-zinc-900 rounded-xl text-xs font-bold transition-colors"
+              className="flex items-center px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 hover:text-zinc-900 dark:hover:text-white rounded-xl text-xs font-bold transition-colors"
             >
               <Home className="h-4 w-4 sm:mr-1.5 text-purple-600 shrink-0" />
               <span className="hidden sm:inline">Back to Home</span>

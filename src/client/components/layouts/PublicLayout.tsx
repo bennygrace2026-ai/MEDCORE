@@ -4,6 +4,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { LogOut, Menu, X, BookOpen, Calculator, Coins, Home, Mail, ArrowRight } from 'lucide-react';
 import GlobalBrandLogo from '../shared/GlobalBrandLogo';
+import ThemeToggle from '../shared/ThemeToggle';
 
 export default function PublicLayout() {
   const { isAuthenticated, user, logout } = useAuthStore();
@@ -19,8 +20,8 @@ export default function PublicLayout() {
   const dashboardPath = user?.role === 'SUPER_ADMIN' ? '/super-admin' : user?.role === 'ADMIN' ? '/admin' : '/dashboard';
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
-      <header className="bg-white border-b border-zinc-200 sticky top-0 z-50">
+    <div className="min-h-screen flex flex-col bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
+      <header className="bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-50 transition-colors duration-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16 sm:h-20">
             <Link 
@@ -36,23 +37,26 @@ export default function PublicLayout() {
                 variant="public"
               />
               <div className="flex flex-col min-w-0">
-                <h1 className="text-base sm:text-xl font-black text-zinc-900 tracking-tighter leading-none uppercase italic decoration-red-600 group-hover:text-red-600 transition-colors truncate">{siteTitle}</h1>
+                <h1 className="text-base sm:text-xl font-black text-zinc-900 dark:text-white tracking-tighter leading-none uppercase italic decoration-red-600 group-hover:text-red-600 transition-colors truncate">{siteTitle}</h1>
                 <p className="text-[9px] sm:text-[10px] font-bold text-amber-500 tracking-[0.2em] uppercase leading-none mt-1 truncate">{siteSubtitle}</p>
               </div>
             </Link>
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-6 lg:space-x-8">
-              <Link to="/" className={`text-sm font-medium transition-colors ${location.pathname === '/' ? 'text-red-600 font-bold' : 'text-zinc-600 hover:text-red-600'}`}>Home</Link>
-              <Link to="/courses" className={`text-sm font-medium transition-colors ${location.pathname.startsWith('/courses') ? 'text-red-600 font-bold' : 'text-zinc-600 hover:text-red-600'}`}>Courses</Link>
-              <Link to="/pricing" className={`text-sm font-medium transition-colors ${location.pathname === '/pricing' ? 'text-red-600 font-bold' : 'text-zinc-600 hover:text-red-600'}`}>Pricing & Coins</Link>
-              <Link to="/dashboard/calculator" className={`text-sm font-medium transition-colors ${location.pathname === '/dashboard/calculator' ? 'text-red-600 font-bold' : 'text-zinc-600 hover:text-red-600'}`}>GP Calculator</Link>
+              <Link to="/" className={`text-sm font-medium transition-colors ${location.pathname === '/' ? 'text-red-600 font-bold' : 'text-zinc-600 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-500'}`}>Home</Link>
+              <Link to="/courses" className={`text-sm font-medium transition-colors ${location.pathname.startsWith('/courses') ? 'text-red-600 font-bold' : 'text-zinc-600 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-500'}`}>Courses</Link>
+              <Link to="/pricing" className={`text-sm font-medium transition-colors ${location.pathname === '/pricing' ? 'text-red-600 font-bold' : 'text-zinc-600 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-500'}`}>Pricing & Coins</Link>
+              <Link to="/dashboard/calculator" className={`text-sm font-medium transition-colors ${location.pathname === '/dashboard/calculator' ? 'text-red-600 font-bold' : 'text-zinc-600 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-500'}`}>GP Calculator</Link>
             </nav>
 
-            <div className="flex items-center space-x-2 sm:space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-3.5">
+              {/* Global Theme Toggle */}
+              <ThemeToggle size="md" />
+
               {isAuthenticated ? (
                 <div className="flex items-center space-x-2 sm:space-x-3">
-                  <span className="text-sm font-medium text-zinc-600 hidden lg:block">
+                  <span className="text-sm font-medium text-zinc-600 dark:text-zinc-300 hidden lg:block">
                     Welcome, {user?.name?.split(' ')[0]}
                   </span>
                   <Link 
@@ -63,23 +67,23 @@ export default function PublicLayout() {
                   </Link>
                   <button
                     onClick={logout}
-                    className="p-2 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-xl transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+                    className="p-2 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
                     title="Sign out"
                   >
                     <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
                   </button>
                 </div>
               ) : (
-                <div className="hidden sm:flex items-center space-x-3">
+                <div className="hidden sm:flex items-center space-x-2.5">
                   <Link 
                     to="/login" 
-                    className="text-xs sm:text-sm font-medium text-zinc-600 hover:text-red-600 transition-colors px-2 py-1.5"
+                    className="text-xs sm:text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:text-red-600 dark:hover:text-red-500 transition-colors px-2 py-1.5"
                   >
                     Sign In
                   </Link>
                   <Link 
                     to="/register" 
-                    className="inline-flex items-center px-3.5 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-xl text-white bg-zinc-900 hover:bg-black transition-colors shadow-sm"
+                    className="inline-flex items-center px-3.5 py-2 border border-transparent text-xs sm:text-sm font-medium rounded-xl text-white bg-zinc-900 hover:bg-black dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white transition-colors shadow-sm"
                   >
                     Get Started
                   </Link>
@@ -90,7 +94,7 @@ export default function PublicLayout() {
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
+                className="md:hidden p-2 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
                 aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
               >
                 {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -101,11 +105,11 @@ export default function PublicLayout() {
 
         {/* Mobile / Tablet Dropdown Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-zinc-200 bg-white/95 backdrop-blur-md px-4 pt-3 pb-6 space-y-2 shadow-xl animate-in slide-in-from-top-2 duration-200">
+          <div className="md:hidden border-t border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md px-4 pt-3 pb-6 space-y-2 shadow-xl animate-in slide-in-from-top-2 duration-200">
             <Link
               to="/"
               onClick={() => setMobileMenuOpen(false)}
-              className={`flex items-center px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${location.pathname === '/' ? 'bg-red-50 text-red-600 font-bold' : 'text-zinc-700 hover:bg-zinc-100'}`}
+              className={`flex items-center px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${location.pathname === '/' ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 font-bold' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
             >
               <Home className="h-4 w-4 mr-3 text-zinc-400" />
               Home
@@ -113,7 +117,7 @@ export default function PublicLayout() {
             <Link
               to="/courses"
               onClick={() => setMobileMenuOpen(false)}
-              className={`flex items-center px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${location.pathname.startsWith('/courses') ? 'bg-red-50 text-red-600 font-bold' : 'text-zinc-700 hover:bg-zinc-100'}`}
+              className={`flex items-center px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${location.pathname.startsWith('/courses') ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 font-bold' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
             >
               <BookOpen className="h-4 w-4 mr-3 text-zinc-400" />
               Courses
@@ -121,7 +125,7 @@ export default function PublicLayout() {
             <Link
               to="/pricing"
               onClick={() => setMobileMenuOpen(false)}
-              className={`flex items-center px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${location.pathname === '/pricing' ? 'bg-red-50 text-red-600 font-bold' : 'text-zinc-700 hover:bg-zinc-100'}`}
+              className={`flex items-center px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${location.pathname === '/pricing' ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 font-bold' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
             >
               <Coins className="h-4 w-4 mr-3 text-zinc-400" />
               Pricing & Coins
@@ -129,7 +133,7 @@ export default function PublicLayout() {
             <Link
               to="/dashboard/calculator"
               onClick={() => setMobileMenuOpen(false)}
-              className={`flex items-center px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${location.pathname === '/dashboard/calculator' ? 'bg-red-50 text-red-600 font-bold' : 'text-zinc-700 hover:bg-zinc-100'}`}
+              className={`flex items-center px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${location.pathname === '/dashboard/calculator' ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 font-bold' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
             >
               <Calculator className="h-4 w-4 mr-3 text-zinc-400" />
               GP Calculator
@@ -137,25 +141,31 @@ export default function PublicLayout() {
             <Link
               to="/contact"
               onClick={() => setMobileMenuOpen(false)}
-              className={`flex items-center px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${location.pathname === '/contact' ? 'bg-red-50 text-red-600 font-bold' : 'text-zinc-700 hover:bg-zinc-100'}`}
+              className={`flex items-center px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${location.pathname === '/contact' ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 font-bold' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
             >
               <Mail className="h-4 w-4 mr-3 text-zinc-400" />
               Contact Support
             </Link>
 
+            {/* Mobile theme toggle row */}
+            <div className="pt-2 pb-1 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between px-3.5 py-2">
+              <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Appearance</span>
+              <ThemeToggle variant="segmented" />
+            </div>
+
             {!isAuthenticated && (
-              <div className="pt-3 mt-2 border-t border-zinc-100 grid grid-cols-2 gap-2">
+              <div className="pt-3 mt-2 border-t border-zinc-100 dark:border-zinc-800 grid grid-cols-2 gap-2">
                 <Link
                   to="/login"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center justify-center py-2.5 px-4 text-center rounded-xl text-xs font-bold text-zinc-700 bg-zinc-100 hover:bg-zinc-200 transition-colors"
+                  className="flex items-center justify-center py-2.5 px-4 text-center rounded-xl text-xs font-bold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
                 >
                   Sign In
                 </Link>
                 <Link
                   to="/register"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center justify-center py-2.5 px-4 text-center rounded-xl text-xs font-bold text-white bg-zinc-900 hover:bg-black transition-colors shadow-xs"
+                  className="flex items-center justify-center py-2.5 px-4 text-center rounded-xl text-xs font-bold text-white bg-zinc-900 hover:bg-black dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white transition-colors shadow-xs"
                 >
                   Get Started <ArrowRight className="h-3.5 w-3.5 ml-1" />
                 </Link>

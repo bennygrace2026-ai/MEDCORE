@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { db, getDatabaseStatus, dbInitialization } from '../../db/index.js';
+import { db, getDatabaseStatus, dbInitialization, ensureDbReady } from '../../db/index.js';
 import { supabase, isSupabaseConfigured } from '../../db/supabase.js';
 import { users, students, systemSettings } from '../../db/schema.js';
-import { eq, or } from 'drizzle-orm';
+import { eq, or, sql } from 'drizzle-orm';
 import { authenticateToken, AuthRequest, JWT_SECRET } from '../middleware/auth.js';
 import { syncAndFormatStudent } from '../utils/studentAccess.js';
 
@@ -26,7 +26,7 @@ const generateStudentId = async (): Promise<string> => {
 
 router.post('/register', async (req, res) => {
   try {
-    await dbInitialization;
+    await ensureDbReady();
     const { name, email, phone, password, country, state, institution, department, level } = req.body;
 
     const cleanEmail = email ? String(email).trim().toLowerCase() : '';
@@ -51,8 +51,9 @@ router.post('/register', async (req, res) => {
     // Check if user exists (case-insensitive check)
     const existingUser = await db.select().from(users).where(
       or(
-        eq(users.email, cleanEmail),
-        eq(users.secondaryEmail, cleanEmail)
+        sql`LOWER(${users.email}) = ${cleanEmail}`,
+        sql`LOWER(${users.secondaryEmail}) = ${cleanEmail}`,
+        eq(users.email, cleanEmail)
       )
     ).limit(1);
 
@@ -112,6 +113,36 @@ router.post('/register', async (req, res) => {
       isApproved: true,
       status: 'ACTIVE'
     });
+
+    // Supabase REST client synchronization for cloud resilience
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        await supabase.from('users').upsert({
+          id: userId,
+          email: cleanEmail,
+          password: hashedPassword,
+          name: cleanName,
+          phone: phone ? String(phone).trim() : '',
+          role: 'STUDENT',
+          status: 'ACTIVE'
+        });
+        await supabase.from('students').upsert({
+          id: studentId,
+          user_id: userId,
+          institution: institution ? String(institution).trim() : 'Medcore Academy',
+          department: department ? String(department).trim() : 'Medicine & Surgery',
+          level: level ? String(level).trim() : '100 Level',
+          coins: 0,
+          access_days_remaining: defaultDays,
+          access_expiry_date: expiryDate.toISOString(),
+          streak: 0,
+          is_approved: true,
+          status: 'ACTIVE'
+        });
+      } catch (sbSyncErr) {
+        console.warn('[Supabase REST Sync Warning]', sbSyncErr);
+      }
+    }
 
     const studentRecord = await syncAndFormatStudent({
       id: studentId,
@@ -247,7 +278,7 @@ async function buildAuthDebugPayload(email: string, expectedRole?: string, failu
 
 router.post('/login', async (req, res) => {
   try {
-    await dbInitialization;
+    await ensureDbReady();
     const { email, password, expectedRole } = req.body;
     if (!email || !password) {
       const debugPayload = await buildAuthDebugPayload(email, expectedRole, 'Email and password are required');
@@ -261,8 +292,9 @@ router.post('/login', async (req, res) => {
     try {
       user = await db.select().from(users).where(
         or(
-          eq(users.email, cleanEmail),
-          eq(users.secondaryEmail, cleanEmail)
+          sql`LOWER(${users.email}) = ${cleanEmail}`,
+          sql`LOWER(${users.secondaryEmail}) = ${cleanEmail}`,
+          eq(users.email, cleanEmail)
         )
       ).limit(1);
     } catch (queryErr) {
@@ -270,21 +302,38 @@ router.post('/login', async (req, res) => {
       await new Promise(r => setTimeout(r, 200));
       user = await db.select().from(users).where(
         or(
-          eq(users.email, cleanEmail),
-          eq(users.secondaryEmail, cleanEmail)
+          sql`LOWER(${users.email}) = ${cleanEmail}`,
+          sql`LOWER(${users.secondaryEmail}) = ${cleanEmail}`,
+          eq(users.email, cleanEmail)
         )
       ).limit(1);
     }
 
-    if (user.length === 0) {
+    // Direct Supabase REST fallback if user was not found by Drizzle
+    if (user.length === 0 && isSupabaseConfigured() && supabase) {
       try {
-        user = await db.select().from(users).where(
-          or(
-            eq(users.email, String(email).trim()),
-            eq(users.secondaryEmail, String(email).trim())
-          )
-        ).limit(1);
-      } catch {}
+        const { data: sbUsers } = await supabase
+          .from('users')
+          .select('*')
+          .eq('email', cleanEmail)
+          .limit(1);
+        if (sbUsers && sbUsers.length > 0) {
+          const sbUser = sbUsers[0];
+          user = [sbUser];
+          // Mirror back into local database for cache speed
+          await db.insert(users).values({
+            id: sbUser.id,
+            email: sbUser.email,
+            password: sbUser.password,
+            name: sbUser.name || 'User',
+            role: sbUser.role || 'STUDENT',
+            status: sbUser.status || 'ACTIVE',
+            createdAt: sbUser.created_at ? new Date(sbUser.created_at) : new Date()
+          }).catch(() => {});
+        }
+      } catch (sbQueryErr) {
+        console.warn('Supabase REST fallback user query notice:', sbQueryErr);
+      }
     }
 
     if (user.length === 0) {

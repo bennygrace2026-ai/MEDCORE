@@ -9,7 +9,7 @@ import { settingsRouter } from './routes/settings.js';
 import quizzesRouter from './routes/quizzes.js';
 import { chatRouter } from './routes/chat.js';
 import { contactRouter } from './routes/contact.js';
-import { dbInitialization } from '../db/index.js';
+import { dbInitialization, ensureDbReady } from '../db/index.js';
 
 export function createApp() {
   const app = express();
@@ -93,9 +93,9 @@ export function createApp() {
   // Ensure database initialization is complete before handling API routes
   app.use(async (req, res, next) => {
     try {
-      await dbInitialization;
+      await ensureDbReady();
     } catch (err) {
-      console.warn('[DB Middleware Warning] Error awaiting dbInitialization:', err);
+      console.warn('[DB Middleware Warning] Error awaiting ensureDbReady:', err);
     }
     next();
   });
